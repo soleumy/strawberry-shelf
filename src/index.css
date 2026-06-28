@@ -1,21 +1,23 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
 
 :root {
   font-family: 'Fredoka', 'Quicksand', sans-serif;
   background-color: #FFF0F3;
 }
 
-/* 🍓 Fondo cuadriculado suave (Grid lines) */
+/* 🍓 Fondo cuadriculado suave */
 body {
+  margin: 0;
+  padding: 0;
   background-image: 
-    linear-gradient(to right, rgba(255, 182, 193, 0.18) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 182, 193, 0.18) 1px, transparent 1px);
+    linear-gradient(to right, rgba(255, 182, 193, 0.2) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 182, 193, 0.2) 1px, transparent 1px);
   background-size: 24px 24px;
 }
 
-/* 🎀 Contenedores estilo sticker / burbuja kawaii */
+/* 🎀 Caja estilo burbuja/borde Kawaii */
 .kawaii-box {
   background: white;
   border: 3px solid #FFCCD5;
@@ -23,7 +25,7 @@ body {
   box-shadow: 0 8px 0px #FFB3C1;
 }
 
-/* 🎯 Botones con efecto "Click" hundido de consola retro */
+/* 🎯 Botón burbuja */
 .kawaii-btn {
   background: #FF8FAB;
   color: white;
@@ -32,21 +34,7 @@ body {
   box-shadow: 0 4px 0px #C9184A;
   transition: all 0.1s ease-in-out;
 }
-
 .kawaii-btn:active {
   transform: translateY(4px);
   box-shadow: 0 0px 0px transparent;
-}
-
-/* Scrollbar personalizado de fresa */
-::-webkit-scrollbar {
-  width: 10px;
-}
-::-webkit-scrollbar-track {
-  background: #FFF0F3;
-}
-::-webkit-scrollbar-thumb {
-  background: #FF8FAB;
-  border-radius: 9999px;
-  border: 2px solid #FFF0F3;
 }
