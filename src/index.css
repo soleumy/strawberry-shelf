@@ -573,3 +573,14 @@ input {
     display: none;
   }
 }
+.novel-card,
+.hero-card {
+  display: block;
+  cursor: pointer;
+}
+
+.novel-card:focus-visible,
+.hero-card:focus-visible {
+  outline: 4px solid #ff8fab;
+  outline-offset: 4px;
+}

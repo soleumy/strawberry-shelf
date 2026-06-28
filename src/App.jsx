@@ -1,6 +1,10 @@
 import React, { useMemo, useState } from 'react';
+import { BrowserRouter, Link, Route, Routes } from 'react-router-dom';
 import { BookOpen, Heart, Search, Sparkles, Star, Wand2 } from 'lucide-react';
 import { NOVELS } from './utils/data';
+import { AppProvider } from './context/AppContext';
+import { NovelDetails } from './pages/NovelDetails';
+import { Reader } from './pages/Reader';
 
 const CATEGORIES = ['All', 'Romance', 'Fantasy', 'Villainess', 'Comedy', 'Reincarnation'];
 
@@ -17,7 +21,7 @@ function cleanText(value) {
     .trim();
 }
 
-export default function App() {
+function HomePage() {
   const [activeTab, setActiveTab] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -26,6 +30,7 @@ export default function App() {
       const title = cleanText(novel.title).toLowerCase();
       const author = cleanText(novel.author).toLowerCase();
       const query = searchQuery.toLowerCase();
+
       return (
         (activeTab === 'All' || novel.tags.includes(activeTab)) &&
         (title.includes(query) || author.includes(query))
@@ -63,15 +68,21 @@ export default function App() {
       <main id="inicio" className="mx-auto max-w-7xl px-4 pb-12 pt-8 sm:px-6 lg:px-8">
         <section className="hero-grid">
           <div className="hero-copy">
-            <div className="love-pill"><Sparkles size={15} /> Traducciones hechas con amor</div>
+            <div className="love-pill">
+              <Sparkles size={15} /> Traducciones hechas con amor
+            </div>
+
             <h1>Historias que merecen brillar</h1>
+
             <p>
               Cada palabra traducida con cariño. Explora una biblioteca dulce y ordenada para tus novelas,
               manhwas y lecturas favoritas.
             </p>
 
             <div className="hero-actions">
-              <a href="#catalogo" className="primary-action">Ver catálogo <BookOpen size={18} /></a>
+              <a href="#catalogo" className="primary-action">
+                Ver catálogo <BookOpen size={18} />
+              </a>
               <span className="soft-note">{NOVELS.length} novelas disponibles</span>
             </div>
 
@@ -82,17 +93,19 @@ export default function App() {
             </div>
           </div>
 
-          <aside className="hero-card">
+          <Link to={`/novel/${featured.id}`} className="hero-card">
             <div className="speech-bubble">Cada historia en buenas manos ♡</div>
+
             <div className="featured-cover-wrap">
               <img src={featured.cover} alt={cleanText(featured.title)} />
             </div>
+
             <div className="featured-info">
               <span><Star size={14} fill="currentColor" /> Destacada</span>
               <h2>{cleanText(featured.title)}</h2>
               <p>{cleanText(featured.author)} · {featured.chaptersCount} capítulos</p>
             </div>
-          </aside>
+          </Link>
         </section>
 
         <section id="servicios" className="service-row">
@@ -143,19 +156,23 @@ export default function App() {
 
           <div className="novel-grid">
             {filteredNovels.slice(0, 60).map((novel) => (
-              <article key={novel.id} className="novel-card">
+              <Link key={novel.id} to={`/novel/${novel.id}`} className="novel-card">
                 <div className="cover-frame">
                   <img src={novel.cover} alt={cleanText(novel.title)} loading="lazy" />
                   <span>{novel.chaptersCount} cap.</span>
                 </div>
+
                 <div className="novel-body">
                   <h3 title={cleanText(novel.title)}>{cleanText(novel.title)}</h3>
                   <p>{cleanText(novel.author)}</p>
+
                   <div className="tag-row">
-                    {novel.tags.slice(0, 2).map((tag) => <span key={tag}>{tag}</span>)}
+                    {novel.tags.slice(0, 2).map((tag) => (
+                      <span key={tag}>{tag}</span>
+                    ))}
                   </div>
                 </div>
-              </article>
+              </Link>
             ))}
           </div>
 
@@ -165,5 +182,19 @@ export default function App() {
         </section>
       </main>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AppProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/novel/:id" element={<NovelDetails />} />
+          <Route path="/novel/:novelId/chapter/:chapterId" element={<Reader />} />
+        </Routes>
+      </BrowserRouter>
+    </AppProvider>
   );
 }
