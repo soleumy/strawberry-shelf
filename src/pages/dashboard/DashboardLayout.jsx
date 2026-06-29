@@ -1,151 +1,140 @@
-import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Bell, BookOpen, ChevronRight, Heart, History, Layers, LibraryBig, PenLine, Settings, UserRound } from 'lucide-react';
-import { Outlet, useLocation } from 'react-router-dom';
-import { SiteLayout } from '../../components/SiteLayout';
-import { SEO } from '../../components/SEO';
+import React, { useState } from 'react';
+import { Link, Outlet, useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { supabase } from '../../lib/supabase';
+import { 
+  BookOpen, 
+  Layers, 
+  FileText, 
+  Bell, 
+  Settings, 
+  MessageSquare, 
+  Menu, 
+  X, 
+  LayoutDashboard,
+  LogOut 
+} from 'lucide-react';
 
-const SIDEBAR_ITEMS = [
-  { label: 'Inicio', icon: BookOpen, to: '/dashboard' },
-  { label: 'Mis novelas', icon: PenLine, to: '/dashboard/novels' },
-  { label: 'Mis capítulos', icon: Layers, to: '/dashboard/chapters' },
-  { label: 'Favoritos', icon: Heart, to: '/library' },
-  { label: 'Colecciones', icon: LibraryBig, to: '/dashboard/collections' },
-  { label: 'Historial', icon: History, to: '/library' },
-  { label: 'Borradores', icon: PenLine, to: '/dashboard/drafts' },
-  { label: 'Notificaciones', icon: Bell, to: '/dashboard/notifications' },
-  { label: 'Mensajes', icon: Bell, to: '/dashboard/messages' },
-  { label: 'Perfil', icon: UserRound, to: '/profile/edit' },
-  { label: 'Configuración', icon: Settings, to: '/dashboard/settings' },
+const SIDEBAR_LINKS = [
+  { path: 'novels', label: 'Mis Novelas', icon: BookOpen },
+  { path: 'collections', label: 'Colecciones', icon: Layers },
+  { path: 'drafts', label: 'Borradores', icon: FileText },
+  { path: 'messages', label: 'Mensajes', icon: MessageSquare },
+  { path: 'notifications', label: 'Notificaciones', icon: Bell },
+  { path: 'settings', label: 'Ajustes', icon: Settings },
 ];
 
-function DashboardHome() {
-  const { session, profile } = useAuth();
-  const [stats, setStats] = useState({ novels: 0, chapters: 0, favorites: 0, followers: 0 });
-
-  useEffect(() => {
-    async function load() {
-      if (!session?.user) return;
-
-      const userId = session.user.id;
-
-      const [
-        { count: novels },
-        { count: favorites },
-        { count: followers },
-      ] = await Promise.all([
-        supabase.from('novels').select('*', { count: 'exact', head: true }).eq('created_by', userId),
-        supabase.from('favorites').select('*', { count: 'exact', head: true }).eq('user_id', userId),
-        supabase.from('followers').select('*', { count: 'exact', head: true }).eq('following_id', userId),
-      ]);
-
-      const { data: userNovels } = await supabase.from('novels').select('id').eq('created_by', userId);
-      const novelIds = (userNovels || []).map((n) => n.id);
-
-      let chapterCount = 0;
-      if (novelIds.length > 0) {
-        const { count } = await supabase
-          .from('chapters')
-          .select('*', { count: 'exact', head: true })
-          .in('novel_id', novelIds);
-        chapterCount = count || 0;
-      }
-
-      setStats({
-        novels: novels || 0,
-        chapters: chapterCount,
-        favorites: favorites || 0,
-        followers: followers || 0,
-      });
-    }
-
-    load();
-  }, [session]);
-
-  return (
-    <section className="reader-card">
-      <p className="reader-novel">Mi Panel</p>
-      <h1>Hola, {profile?.display_name || 'Lector'} 🍓</h1>
-
-      <div className="stats-grid">
-        <div className="stat-card"><strong>{stats.novels}</strong><span>Novelas</span></div>
-        <div className="stat-card"><strong>{stats.chapters}</strong><span>Capítulos</span></div>
-        <div className="stat-card"><strong>{stats.favorites}</strong><span>Favoritos</span></div>
-        <div className="stat-card"><strong>{stats.followers}</strong><span>Seguidores</span></div>
-      </div>
-
-      <div className="dashboard-quick-links">
-        <Link to="/dashboard/novels" className="chapter-link">
-          <PenLine size={17} /> Gestionar novelas <ChevronRight size={16} />
-        </Link>
-        <Link to="/library" className="chapter-link">
-          <Heart size={17} /> Mi biblioteca <ChevronRight size={16} />
-        </Link>
-        <Link to="/dashboard/notifications" className="chapter-link">
-          <Bell size={17} /> Notificaciones <ChevronRight size={16} />
-        </Link>
-      </div>
-    </section>
-  );
-}
-
 export function DashboardLayout() {
-  const { session, loading } = useAuth();
+  const { user, loading, signOut } = useAuth();
   const location = useLocation();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  // Mientras se verifica el estado de la sesión, mostramos pantalla de carga
   if (loading) {
     return (
-      <SiteLayout>
-        <main className="detail-page"><section className="reader-card">Cargando...</section></main>
-      </SiteLayout>
+      <div className="loading-screen">
+        <div className="animate-pulse text-pink-500 font-medium">Accediendo al panel de control...</div>
+      </div>
     );
   }
 
-  if (!session) {
-    return (
-      <SiteLayout>
-        <main className="detail-page">
-          <section className="reader-card">
-            <h1>Inicia sesión</h1>
-            <p className="form-message">Necesitas iniciar sesión para acceder al panel.</p>
-            <Link to="/" className="reader-button">Volver al inicio</Link>
-          </section>
-        </main>
-      </SiteLayout>
-    );
+  // Si no hay usuario autenticado, redirigimos de forma segura a la página de inicio
+  if (!user) {
+    return <Navigate to="/" replace />;
   }
 
-  const isHome = location.pathname === '/dashboard';
+  const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
 
   return (
-    <SiteLayout>
-      <SEO title="Mi Panel" />
+    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 font-sans flex text-neutral-800 dark:text-neutral-200">
+      
+      {/* Botón de menú flotante para pantallas móviles */}
+      <button 
+        type="button"
+        onClick={toggleSidebar}
+        className="md:hidden fixed bottom-6 right-6 z-50 p-3.5 bg-pink-500 text-white rounded-full shadow-lg hover:bg-pink-600 transition active:scale-95"
+      >
+        {isSidebarOpen ? <X size={22} /> : <Menu size={22} />}
+      </button>
 
-      <main className="dashboard-page">
-        <aside className="dashboard-sidebar">
-          <p className="reader-novel">Mi Panel</p>
+      {/* Sidebar / Barra lateral de Navegación */}
+      <aside className={`
+        fixed inset-y-0 left-0 z-40 w-64 bg-white dark:bg-neutral-900 border-r border-neutral-200/60 dark:border-neutral-800/60 p-5 flex flex-col justify-between transition-transform duration-300 transform
+        md:translate-x-0 md:static md:h-screen
+        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}>
+        <div className="flex flex-col gap-6">
+          {/* Logo del Panel */}
+          <div className="flex items-center gap-2.5 px-2">
+            <div className="p-2 bg-pink-500 text-white rounded-xl shadow-sm">
+              <LayoutDashboard size={18} />
+            </div>
+            <div>
+              <h2 className="font-extrabold text-sm text-neutral-900 dark:text-white tracking-tight">Studio Panel</h2>
+              <p className="text-[10px] text-neutral-400 font-medium">Creadores y Editores</p>
+            </div>
+          </div>
 
-          <nav className="dashboard-nav">
-            {SIDEBAR_ITEMS.map((item) => {
-              const Icon = item.icon;
-              const active = location.pathname === item.to;
-
+          {/* Listado de Enlaces */}
+          <nav className="flex flex-col gap-1">
+            {SIDEBAR_LINKS.map((link) => {
+              const Icon = link.icon;
+              // Evaluamos si la subruta actual coincide con el enlace para el estado activo
+              const isActive = location.pathname.includes(`/dashboard/${link.path}`);
+              
               return (
-                <Link key={item.to + item.label} to={item.to} className={active ? 'active' : ''}>
-                  <Icon size={17} />
-                  {item.label}
+                <Link
+                  key={link.path}
+                  to={link.path}
+                  onClick={() => setIsSidebarOpen(false)}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold text-xs transition-all ${
+                    isActive
+                      ? 'bg-pink-500 text-white shadow-sm'
+                      : 'text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800/50 hover:text-neutral-800 dark:hover:text-neutral-200'
+                  }`}
+                >
+                  <Icon size={16} className={isActive ? 'text-white' : 'text-neutral-400'} />
+                  {link.label}
                 </Link>
               );
             })}
           </nav>
-        </aside>
-
-        <div className="dashboard-content">
-          {isHome ? <DashboardHome /> : <Outlet />}
         </div>
-      </main>
-    </SiteLayout>
+
+        {/* Sección inferior: Retorno / Desconexión */}
+        <div className="flex flex-col gap-2 border-t border-neutral-100 dark:border-neutral-800/80 pt-4">
+          <Link 
+            to="/" 
+            className="flex items-center justify-center text-center px-4 py-2 border border-neutral-200 dark:border-neutral-800 text-xs font-bold rounded-xl hover:bg-neutral-50 dark:hover:bg-neutral-800/40 transition"
+          >
+            Volver al Catálogo
+          </Link>
+          <button
+            type="button"
+            onClick={() => signOut()}
+            className="flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold text-xs text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-all text-left w-full"
+          >
+            <LogOut size={16} />
+            Cerrar Sesión
+          </button>
+        </div>
+      </aside>
+
+      {/* Fondo oscuro traslúcido para móviles cuando el menú está desplegado */}
+      {isSidebarOpen && (
+        <div 
+          onClick={toggleSidebar} 
+          className="md:hidden fixed inset-0 z-30 bg-black/20 backdrop-blur-xs"
+        />
+      )}
+
+      {/* Contenedor Principal del Contenido Dinámico */}
+      <section className="flex-1 min-w-0 h-screen overflow-y-auto px-4 py-6 md:p-8">
+        <div className="max-w-5xl mx-auto">
+          {/* Aquí se renderizarán los componentes hijos según la ruta activa */}
+          <Outlet />
+        </div>
+      </section>
+
+    </div>
   );
 }

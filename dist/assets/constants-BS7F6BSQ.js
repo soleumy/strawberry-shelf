@@ -1,0 +1,1 @@
+const a={draft:"Borrador",pending:"Pendiente",approved:"Publicada",rejected:"Rechazada",hidden:"Oculta",paused:"Pausada",completed:"Finalizada",cancelled:"Cancelada"},e="https://wa.link/4rpknp";export{a as N,e as W};

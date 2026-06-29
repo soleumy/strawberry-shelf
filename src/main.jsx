@@ -1,15 +1,13 @@
-import React, { Suspense, lazy } from 'react';
+import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { AuthProvider } from './context/AuthContext';
 import App from './App.jsx';
 import './index.css';
+import { AuthProvider } from './context/AuthContext'; // Mantén solo una de estas líneas
 
 createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
+  <StrictMode>
     <AuthProvider>
-      <Suspense fallback={<div className="loading-screen">Cargando Strawberry Shelf...</div>}>
-        <App />
-      </Suspense>
+      <App />
     </AuthProvider>
-  </React.StrictMode>,
+  </StrictMode>
 );

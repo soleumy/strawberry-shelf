@@ -2,7 +2,7 @@ import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { HashRouter, Link, Route, Routes, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, BookOpen, Home } from 'lucide-react';
 import { supabase } from './lib/supabase';
-import { getNovelAuthorName, enrichNovelAuthors } from './lib/novelUtils';
+import { findLocalNovel } from './lib/novelUtils';
 import { CustomCursor } from './components/CustomCursor';
 import { MobileNav } from './components/MobileNav';
 import { FavoriteButton } from './components/FavoriteButton';
@@ -14,8 +14,8 @@ import { CommentsSection } from './components/CommentsSection';
 import { ReaderSettings, useReaderSettings } from './components/ReaderSettings';
 import { ReportButton } from './components/ReportButton';
 import { SEO } from './components/SEO';
-import { findLocalNovel } from './lib/novelUtils';
 
+// Carga perezosa de vistas secundarias y administrativas
 const HomePage = lazy(() => import('./pages/HomePage').then((m) => ({ default: m.HomePage })));
 const Library = lazy(() => import('./pages/Library').then((m) => ({ default: m.Library })));
 const UserProfile = lazy(() => import('./pages/UserProfile').then((m) => ({ default: m.UserProfile })));
@@ -24,8 +24,8 @@ const AdminPage = lazy(() => import('./pages/AdminPage').then((m) => ({ default:
 const DashboardLayout = lazy(() => import('./pages/dashboard/DashboardLayout').then((m) => ({ default: m.DashboardLayout })));
 const MyNovels = lazy(() => import('./pages/dashboard/MyNovels').then((m) => ({ default: m.MyNovels })));
 const EditNovel = lazy(() => import('./pages/dashboard/EditNovel').then((m) => ({ default: m.EditNovel })));
-const ChapterManager = lazy(() => import('./pages/dashboard/ChapterManager').then((m) => ({ default: m.ChapterManager })));
-const ChapterEditor = lazy(() => import('./pages/dashboard/ChapterManager').then((m) => ({ default: m.ChapterEditor })));
+const ChapterManager = lazy(() => import('./pages/dashboard/ManageChapters').then((m) => ({ default: m.ChapterManager })));
+const ChapterEditor = lazy(() => import('./pages/dashboard/ManageChapters').then((m) => ({ default: m.ChapterEditor })));
 const Collections = lazy(() => import('./pages/dashboard/Collections').then((m) => ({ default: m.Collections })));
 const CollectionsPage = lazy(() => import('./pages/Collections').then((m) => ({ default: m.default })));
 const FeedPage = lazy(() => import('./pages/Feed').then((m) => ({ default: m.default })));
@@ -46,9 +46,23 @@ function NovelDetails() {
 
   useEffect(() => {
     async function loadNovel() {
-      const { data } = await supabase.from('novels').select('*, chapters(*), author:profiles(username, full_name)').eq('id', id).maybeSingle();
-      const novel = data || findLocalNovel(id) || null;
-      const finalNovel = novel && data ? (await enrichNovelAuthors([novel]))[0] : novel;
+      let remoteNovel = null;
+
+      if (supabase.isConfigured) {
+        const { data } = await supabase
+          .from('novels')
+          .select('*, chapters(*), author:profiles(username, display_name)')
+          .eq('id', id)
+          .maybeSingle();
+        remoteNovel = data;
+      }
+
+      const localNovel = findLocalNovel(id);
+      const rawNovel = remoteNovel || localNovel || null;
+      
+      // Enriquecer autores si se obtienen datos válidos de Supabase
+      const finalNovel = rawNovel;
+      
       setNovel(finalNovel || null);
       setLoading(false);
     }
@@ -72,9 +86,12 @@ function NovelDetails() {
         </div>
 
         <div className="detail-content">
-          <span className="detail-pill">{novel.status || novel.publication_status}</span>
+          <span className="detail-pill">{novel.status || novel.publication_status || 'approved'}</span>
           <h1>{novel.title}</h1>
-          <p className="detail-meta">{getNovelAuthorName(novel)}{novel.translator ? ` · Trad: ${novel.translator}` : ''}</p>
+          <p className="detail-meta">
+            <span>{novel?.author?.display_name || novel?.author_name_override || 'Comunidad'}</span>
+            {novel.translator ? ` · Trad: ${novel.translator}` : ''}
+          </p>
           <p className="detail-synopsis">{novel.synopsis || 'Sin sinopsis.'}</p>
 
           {(novel.genres || novel.tags)?.length > 0 && (
@@ -83,8 +100,10 @@ function NovelDetails() {
             </div>
           )}
 
-          <RatingStars novelId={novel.id} />
-          <NovelStats novelId={novel.id} />
+          <div className="detail-stats-box">
+            <RatingStars novelId={novel.id} />
+            <NovelStats novelId={novel.id} />
+          </div>
 
           <div className="detail-actions">
             <FavoriteButton novelId={novel.id} />
@@ -124,9 +143,21 @@ function Reader() {
 
   useEffect(() => {
     async function loadReader() {
-      const { data } = await supabase.from('novels').select('*, chapters(*), author:profiles(username, full_name)').eq('id', novelId).maybeSingle();
-      const foundNovelRaw = data || findLocalNovel(novelId);
-      const foundNovel = data ? (await enrichNovelAuthors([foundNovelRaw]))[0] : foundNovelRaw;
+      let remoteNovel = null;
+
+      if (supabase.isConfigured) {
+        const { data } = await supabase
+          .from('novels')
+          .select('*, chapters(*), author:profiles(username, display_name)')
+          .eq('id', novelId)
+          .maybeSingle();
+        remoteNovel = data;
+      }
+
+      const localNovel = findLocalNovel(novelId);
+      const foundNovelRaw = remoteNovel || localNovel;
+      const foundNovel = foundNovelRaw;
+      
       const sorted = [...(foundNovel?.chapters || [])].sort((a, b) => a.chapter_order - b.chapter_order);
       const current = sorted.find((item) => String(item.id) === String(chapterId));
 
@@ -143,17 +174,20 @@ function Reader() {
 
       setLoading(false);
 
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (sessionData.session?.user && foundNovel && current) {
-        const { data: historyData } = await supabase
-          .from('reading_history')
-          .select('*')
-          .eq('user_id', sessionData.session.user.id)
-          .eq('novel_id', foundNovel.id)
-          .maybeSingle();
+      // Posicionamiento de scroll inteligente basado en historial remoto
+      if (supabase.isConfigured && foundNovel && current) {
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (sessionData.session?.user) {
+          const { data: historyData } = await supabase
+            .from('reading_history')
+            .select('*')
+            .eq('user_id', sessionData.session.user.id)
+            .eq('novel_id', foundNovel.id)
+            .maybeSingle();
 
-        if (historyData?.chapter_id === current.id && historyData.scroll_position > 0) {
-          setTimeout(() => window.scrollTo({ top: historyData.scroll_position, behavior: 'smooth' }), 400);
+          if (historyData?.chapter_id === current.id && historyData.scroll_position > 0) {
+            setTimeout(() => window.scrollTo({ top: historyData.scroll_position, behavior: 'smooth' }), 400);
+          }
         }
       }
     }
@@ -161,6 +195,7 @@ function Reader() {
     loadReader();
   }, [novelId, chapterId]);
 
+  // Manejo de scroll para actualización de barra de progreso reactiva
   useEffect(() => {
     function updateProgress() {
       const scrollTop = window.scrollY;
@@ -177,10 +212,12 @@ function Reader() {
     };
   }, []);
 
+  // Intervalo automático para almacenar progreso en la base de datos
   useEffect(() => {
     async function saveHistory() {
+      if (!supabase.isConfigured || !novel || !chapter) return;
       const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session?.user || !novel || !chapter) return;
+      if (!sessionData.session?.user) return;
 
       await supabase.from('reading_history').upsert({
         user_id: sessionData.session.user.id,
@@ -235,7 +272,7 @@ function Reader() {
         {chapter.file_type === 'pdf' && chapter.file_url ? (
           <iframe className="pdf-reader" src={chapter.file_url} title={chapter.title} />
         ) : (
-          <div className="reader-text">{text}</div>
+          <div className="reader-text" style={{ whitespace: 'pre-wrap' }}>{text}</div>
         )}
       </article>
 

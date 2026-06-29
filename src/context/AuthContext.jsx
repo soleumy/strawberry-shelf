@@ -1,80 +1,87 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { ensureProfileForUser } from '../lib/api/profiles';
 
-const AuthContext = createContext(null);
+const AuthContext = createContext({
+  user: null,
+  profile: null,
+  loading: true,
+  signOut: async () => {},
+});
 
 export function AuthProvider({ children }) {
-  const [session, setSession] = useState(null);
+  const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const loadProfile = useCallback(async (userId) => {
-    if (!userId) {
-      setProfile(null);
-      return null;
-    }
-
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle();
-
-    setProfile(data || null);
-    return data;
-  }, []);
-
-  const refresh = useCallback(async () => {
-    const { data } = await supabase.auth.getSession();
-    const currentSession = data.session || null;
-    setSession(currentSession);
-
-    if (currentSession?.user) {
-      // Ensure a profile row exists for this user, then load it
-      await ensureProfileForUser(currentSession.user);
-      await loadProfile(currentSession.user.id);
-    } else {
-      setProfile(null);
-    }
-
-    setLoading(false);
-  }, [loadProfile]);
-
   useEffect(() => {
-    refresh();
+    // Si Supabase no está configurado, saltamos la carga remota
+    if (!supabase.isConfigured) {
+      setLoading(false);
+      return;
+    }
 
-    const { data } = supabase.auth.onAuthStateChange(() => {
-      refresh();
+    // 1. Obtener la sesión actual al cargar la app
+    async function getInitialSession() {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          setUser(session.user);
+          await fetchProfile(session.user.id);
+        }
+      } catch (err) {
+        console.error('Error obteniendo sesión inicial:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    // 2. Obtener el perfil extendido (rol de admin, avatar, etc.)
+    async function fetchProfile(userId) {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (!error && data) {
+        setProfile(data);
+      }
+    }
+
+    getInitialSession();
+
+    // 3. Escuchar cambios de estado en tiempo real (Login, Logout, Registro)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) {
+        setUser(session.user);
+        await fetchProfile(session.user.id);
+      } else {
+        setUser(null);
+        setProfile(null);
+      }
+      setLoading(false);
     });
 
-    return () => data.subscription.unsubscribe();
-  }, [refresh]);
+    return () => {
+      subscription?.unsubscribe();
+    };
+  }, []);
 
-  const value = useMemo(() => ({
-    session,
-    profile,
-    loading,
-    isAdmin: !!profile?.is_admin,
-    isModerator: !!(profile?.is_moderator || profile?.is_admin),
-    userId: session?.user?.id || null,
-    refresh,
-    loadProfile,
-  }), [session, profile, loading, refresh, loadProfile]);
+  const signOut = async () => {
+    if (supabase.isConfigured) {
+      await supabase.auth.signOut();
+    }
+    setUser(null);
+    setProfile(null);
+  };
 
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={{ user, profile, loading, signOut }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext);
-
-  if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
-  }
-
-  return context;
+  return useContext(AuthContext);
 }

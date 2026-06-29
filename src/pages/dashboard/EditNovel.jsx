@@ -1,268 +1,166 @@
-import React, { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, Save } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { uploadFile, removeFile } from '../../lib/storage';
-import { searchProfiles } from '../../lib/api/profiles';
 import { useAuth } from '../../context/AuthContext';
-import { GENRES, TAGS, LANGUAGES, NOVEL_STATUSES, PUBLICATION_STATUSES } from '../../lib/constants';
-import { safeFileName } from '../../lib/novelUtils';
+import { ArrowLeft, Save, Sparkles, Image, Globe } from 'lucide-react';
 
 export function EditNovel() {
-  const { novelId } = useParams();
-  const { session } = useAuth();
-  const isNew = !novelId || novelId === 'new';
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const isNew = id === 'new';
 
-  const [form, setForm] = useState({
-    title: '',
-    author: '',
-    author_id: null,
-    translator: '',
-    synopsis: '',
-    cover_url: '',
-    cover_path: null,
-    status: 'draft',
-    publication_status: 'ongoing',
-    language: 'es',
-    genres: [],
-    tags: [],
-  });
-  const [coverFile, setCoverFile] = useState(null);
-  const [authorSuggestions, setAuthorSuggestions] = useState([]);
+  const [title, setTitle] = useState('');
+  const [synopsis, setSynopsis] = useState('');
+  const [coverUrl, setCoverUrl] = useState('');
+  const [language, setLanguage] = useState('es');
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(!isNew);
 
   useEffect(() => {
-    if (isNew) return;
+    if (isNew || !supabase.isConfigured) return;
 
-    async function load() {
-      const { data } = await supabase.from('novels').select('*').eq('id', novelId).maybeSingle();
-      if (data) {
-        setForm({
-          title: data.title || '',
-          author: data.author || '',
-          translator: data.translator || '',
-          synopsis: data.synopsis || '',
-          cover_url: data.cover_url || '',
-          cover_path: data.cover_path || null,
-          status: data.status || 'draft',
-          publication_status: data.publication_status || 'ongoing',
-          language: data.language || 'es',
-          genres: data.genres || [],
-          tags: data.tags || [],
-        });
+    async function loadNovelData() {
+      const { data, error } = await supabase
+        .from('novels')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (!error && data) {
+        setTitle(data.title || '');
+        setSynopsis(data.synopsis || '');
+        setCoverUrl(data.cover_url || '');
+        setLanguage(data.language || 'es');
       }
+      setLoading(false);
     }
 
-    load();
-  }, [novelId, isNew]);
+    loadNovelData();
+  }, [id, isNew]);
 
-  function updateField(field, value) {
-    setForm((current) => ({ ...current, [field]: value }));
-  }
-
-  async function handleAuthorInput(value) {
-    updateField('author', value);
-    updateField('author_id', null);
-    if (value && value.length >= 2) {
-      const { data } = await searchProfiles(value, 5);
-      setAuthorSuggestions(data || []);
-    } else {
-      setAuthorSuggestions([]);
-    }
-  }
-
-  function pickAuthor(profile) {
-    setForm((current) => ({ ...current, author: profile.full_name || profile.username, author_id: profile.id }));
-    setAuthorSuggestions([]);
-  }
-
-  function toggleArray(field, value) {
-    setForm((current) => {
-      const arr = current[field];
-      return {
-        ...current,
-        [field]: arr.includes(value) ? arr.filter((v) => v !== value) : [...arr, value],
-      };
-    });
-  }
-
-  async function uploadCover() {
-    if (!coverFile || !session?.user) return form.cover_url;
-    const { url, path, error } = await uploadFile({ bucket: 'covers', userId: session.user.id, file: coverFile });
-    if (error) throw error;
-    return { url, path };
-  }
-
-  async function deleteCover() {
-    if (!form.cover_path) {
-      setForm((c) => ({ ...c, cover_url: null, cover_path: null }));
-      return;
-    }
-
-    const { error } = await removeFile({ bucket: 'covers', path: form.cover_path });
-    if (error) {
-      setMessage(`Error eliminando portada: ${error.message}`);
-      return;
-    }
-
-    setForm((c) => ({ ...c, cover_url: null, cover_path: null }));
-    setMessage('Portada eliminada.');
-  }
-
-  async function save(event) {
-    event.preventDefault();
-    if (!session?.user) return;
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!title.trim()) return;
 
     setSaving(true);
-    setMessage('');
+    // Validación de respaldo estético para portadas vacías
+    const finalCoverUrl = coverUrl.trim() || 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?q=80&w=600';
+
+    const novelPayload = {
+      title: title.trim(),
+      synopsis: synopsis.trim(),
+      cover_url: finalCoverUrl,
+      language,
+      author_id: user?.id,
+      status: 'approved' // Auto-aprobado para desarrollo; cambiar a 'pending' en producción si hay moderación estricta
+    };
 
     try {
-      const coverResult = coverFile ? await uploadCover() : { url: form.cover_url, path: form.cover_path };
-      const coverUrl = coverResult?.url || null;
-      const coverPath = coverResult?.path || null;
-
-      const payload = {
-        ...form,
-        author_id: form.author_id || null,
-        cover_url: coverUrl,
-        cover_path: coverPath,
-        updated_at: new Date().toISOString(),
-      };
-
       if (isNew) {
-        payload.created_by = session.user.id;
-        payload.status = 'draft';
-        const { error } = await supabase.from('novels').insert(payload);
-        if (error) throw error;
-        setMessage('Novela creada como borrador.');
+        await supabase.from('novels').insert([novelPayload]);
       } else {
-        const { error } = await supabase.from('novels').update(payload).eq('id', novelId);
-        if (error) throw error;
-        setMessage('Novela actualizada.');
+        await supabase.from('novels').update(novelPayload).eq('id', id);
       }
-    } catch (error) {
-      setMessage(error.message);
+      navigate('/dashboard/novels');
+    } catch (err) {
+      console.error('Error guardando la novela:', err);
+    } finally {
+      setSaving(false);
     }
+  };
 
-    setSaving(false);
+  if (loading) {
+    return (
+      <div className="text-center py-12 text-pink-500 font-medium animate-pulse text-xs">
+        Recuperando el manuscrito de la novela...
+      </div>
+    );
   }
 
   return (
-    <section className="reader-card">
-      <Link to="/dashboard/novels" className="back-link">
-        <ArrowLeft size={18} /> Mis novelas
+    <div className="animate-fadeIn font-sans max-w-2xl mx-auto">
+      {/* Botón de retorno */}
+      <Link 
+        to="/dashboard/novels" 
+        className="inline-flex items-center gap-1.5 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 text-xs font-bold mb-5 transition"
+      >
+        <ArrowLeft size={14} /> Volver al listado
       </Link>
 
-      <h1>{isNew ? 'Nueva novela' : 'Editar novela'}</h1>
+      <div className="bg-white dark:bg-neutral-900 border border-neutral-200/60 dark:border-neutral-800/60 rounded-2xl p-6 shadow-xs">
+        <h1 className="text-lg font-bold text-neutral-900 dark:text-white flex items-center gap-2 mb-6">
+          <Sparkles className="text-pink-500" size={20} />
+          {isNew ? 'Registrar una Nueva Obra' : 'Modificar Datos de la Obra'}
+        </h1>
 
-      <form className="profile-form" onSubmit={save}>
-        <label>
-          Título
-          <input value={form.title} onChange={(e) => updateField('title', e.target.value)} required />
-        </label>
-
-        <label>
-          Autor
-          <input value={form.author} onChange={(e) => handleAuthorInput(e.target.value)} />
-          {authorSuggestions.length > 0 && (
-            <ul className="suggestions-list">
-              {authorSuggestions.map((p) => (
-                <li key={p.id} onClick={() => pickAuthor(p)}>
-                  <img src={p.avatar_url || '/default-avatar.png'} alt={p.username} />
-                  <span>{p.full_name || p.username} <small>@{p.username}</small></span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </label>
-
-        <label>
-          Traductor
-          <input value={form.translator} onChange={(e) => updateField('translator', e.target.value)} />
-        </label>
-
-        <label>
-          Sinopsis
-          <textarea value={form.synopsis} onChange={(e) => updateField('synopsis', e.target.value)} rows="4" />
-        </label>
-
-        <label>
-          Portada (archivo)
-          <input type="file" accept="image/*" onChange={(e) => setCoverFile(e.target.files?.[0] || null)} />
-        </label>
-
-        {form.cover_url && (
-          <img src={form.cover_url} alt="Portada" className="edit-novel-cover-preview" />
-        )}
-
-        <label>
-          Idioma
-          <select value={form.language} onChange={(e) => updateField('language', e.target.value)}>
-            {LANGUAGES.map((lang) => (
-              <option key={lang.id} value={lang.id}>{lang.label}</option>
-            ))}
-          </select>
-        </label>
-
-        <label>
-          Estado de publicación
-          <select value={form.publication_status} onChange={(e) => updateField('publication_status', e.target.value)}>
-            {Object.entries(PUBLICATION_STATUSES).map(([key, label]) => (
-              <option key={key} value={key}>{label}</option>
-            ))}
-          </select>
-        </label>
-
-        {!isNew && (
-          <label>
-            Estado de revisión
-            <select value={form.status} onChange={(e) => updateField('status', e.target.value)}>
-              {Object.entries(NOVEL_STATUSES).map(([key, label]) => (
-                <option key={key} value={key}>{label}</option>
-              ))}
-            </select>
-          </label>
-        )}
-
-        <fieldset className="tag-selector">
-          <legend>Géneros</legend>
-          <div className="tag-chips">
-            {GENRES.map((genre) => (
-              <button
-                key={genre}
-                type="button"
-                className={form.genres.includes(genre) ? 'active' : ''}
-                onClick={() => toggleArray('genres', genre)}
-              >
-                {genre}
-              </button>
-            ))}
+        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+          {/* Título */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-neutral-500 dark:text-neutral-400">Título de la Novela</label>
+            <input 
+              type="text" 
+              required
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Ej: El Retorno del Héroe Legendario"
+              className="w-full px-4 py-2 text-xs bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl focus:outline-none focus:border-pink-500 text-neutral-900 dark:text-neutral-100 transition"
+            />
           </div>
-        </fieldset>
 
-        <fieldset className="tag-selector">
-          <legend>Etiquetas</legend>
-          <div className="tag-chips">
-            {TAGS.map((tag) => (
-              <button
-                key={tag}
-                type="button"
-                className={form.tags.includes(tag) ? 'active' : ''}
-                onClick={() => toggleArray('tags', tag)}
+          {/* Enlace de Portada e Idioma */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="sm:col-span-2 flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 flex items-center gap-1">
+                <Image size={13} /> URL de la Portada
+              </label>
+              <input 
+                type="url" 
+                value={coverUrl}
+                onChange={(e) => setCoverUrl(e.target.value)}
+                placeholder="https://ejemplo.com/portada.jpg"
+                className="w-full px-4 py-2 text-xs bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl focus:outline-none focus:border-pink-500 text-neutral-900 dark:text-neutral-100 transition"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 flex items-center gap-1">
+                <Globe size={13} /> Idioma
+              </label>
+              <select
+                value={language}
+                onChange={(e) => setLanguage(e.target.value)}
+                className="w-full px-3 py-2 text-xs bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl focus:outline-none focus:border-pink-500 text-neutral-900 dark:text-neutral-100 font-bold transition"
               >
-                {tag}
-              </button>
-            ))}
+                <option value="es">Español (es)</option>
+                <option value="en">English (en)</option>
+                <option value="jp">日本語 (jp)</option>
+              </select>
+            </div>
           </div>
-        </fieldset>
 
-        <button type="submit" className="primary-action" disabled={saving}>
-          <Save size={17} /> {saving ? 'Guardando...' : 'Guardar novela'}
-        </button>
+          {/* Sinopsis */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-neutral-500 dark:text-neutral-400">Sinopsis o Resumen</label>
+            <textarea 
+              rows={5}
+              value={synopsis}
+              onChange={(e) => setSynopsis(e.target.value)}
+              placeholder="Escribe una breve introducción que atrape a los lectores..."
+              className="w-full px-4 py-3 text-xs bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 rounded-xl focus:outline-none focus:border-pink-500 text-neutral-900 dark:text-neutral-100 leading-relaxed resize-none transition"
+            />
+          </div>
 
-        {message && <p className="form-message">{message}</p>}
-      </form>
-    </section>
+          {/* Botonera de Envío */}
+          <button
+            type="submit"
+            disabled={saving}
+            className="mt-2 w-full flex items-center justify-center gap-2 bg-pink-500 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-xs hover:bg-pink-600 transition disabled:opacity-50"
+          >
+            <Save size={14} />
+            {saving ? 'Guardando cambios...' : 'Guardar Ficha de la Obra'}
+          </button>
+        </form>
+      </div>
+    </div>
   );
 }

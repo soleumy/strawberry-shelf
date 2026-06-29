@@ -8,7 +8,7 @@ const missingSupabaseConfig = !supabaseUrl || !supabaseAnonKey;
 function createEmptyQuery() {
   const result = Promise.resolve({
     data: null,
-    error: new Error('Supabase no esta configurado. Revisa las variables de entorno en Vercel.'),
+    error: new Error('Supabase no está configurado. Revisa las variables de entorno en Vercel o local.'),
     count: 0,
   });
 
@@ -45,11 +45,11 @@ function createDisabledSupabaseClient() {
       }),
       signInWithPassword: async () => ({
         data: null,
-        error: new Error('Supabase no esta configurado en Vercel.'),
+        error: new Error('Supabase no está configurado en Vercel.'),
       }),
       signUp: async () => ({
         data: null,
-        error: new Error('Supabase no esta configurado en Vercel.'),
+        error: new Error('Supabase no está configurado en Vercel.'),
       }),
       signOut: async () => ({ error: null }),
     },
@@ -58,7 +58,7 @@ function createDisabledSupabaseClient() {
       from: () => ({
         upload: async () => ({
           data: null,
-          error: new Error('Supabase Storage no esta configurado.'),
+          error: new Error('Supabase Storage no está configurado.'),
         }),
         getPublicUrl: () => ({ data: { publicUrl: '' } }),
       }),
@@ -66,8 +66,15 @@ function createDisabledSupabaseClient() {
   };
 }
 
-export const supabase = missingSupabaseConfig
+// Creamos el cliente real o el simulado
+const rawClient = missingSupabaseConfig
   ? createDisabledSupabaseClient()
   : createClient(supabaseUrl, supabaseAnonKey);
 
+// Si es el cliente real, le inyectamos la bandera de configuración activa
+if (!missingSupabaseConfig) {
+  rawClient.isConfigured = true;
+}
+
+export const supabase = rawClient;
 export default supabase;
