@@ -1,4 +1,5 @@
 import { NOVELS } from '../utils/data';
+import { supabase } from './supabase';
 
 export function isUuid(value) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value));
@@ -65,6 +66,54 @@ export function mergeNovels(remoteNovels = []) {
   const localOnly = LOCAL_NOVELS.filter((novel) => !remoteIds.has(novel.id));
 
   return [...normalizedRemote, ...localOnly];
+}
+
+export function getNovelAuthorName(novel) {
+  if (!novel) return 'Sin autor';
+  if (typeof novel.author === 'string' && novel.author.trim()) return novel.author;
+
+  const candidate = novel.author && typeof novel.author === 'object'
+    ? novel.author
+    : novel.author_profile || novel.author_info || null;
+
+  if (candidate) {
+    return candidate.full_name?.trim() || candidate.display_name?.trim() || candidate.username?.trim() || 'Sin autor';
+  }
+
+  if (novel.author_id) {
+    return novel.author_id;
+  }
+
+  return 'Sin autor';
+}
+
+export async function enrichNovelAuthors(novels = []) {
+  const rows = Array.isArray(novels) ? novels : [novels];
+  const ids = [...new Set(rows
+    .filter((novel) => novel && !novel.author && novel.author_id)
+    .map((novel) => novel.author_id))];
+
+  if (!ids.length) return rows;
+
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id, username, full_name')
+    .in('id', ids);
+
+  const profileMap = new Map((profiles || []).map((profile) => [profile.id, profile]));
+
+  return rows.map((novel) => {
+    if (!novel) return novel;
+    if (typeof novel.author === 'string' && novel.author.trim()) return novel;
+
+    const profile = profileMap.get(novel.author_id);
+    if (!profile) return novel;
+
+    return {
+      ...novel,
+      author: profile.full_name || profile.username || novel.author || 'Sin autor',
+    };
+  });
 }
 
 export function sortNovels(novels, sortBy) {

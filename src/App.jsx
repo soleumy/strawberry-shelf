@@ -2,6 +2,7 @@ import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { HashRouter, Link, Route, Routes, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, BookOpen, Home } from 'lucide-react';
 import { supabase } from './lib/supabase';
+import { getNovelAuthorName, enrichNovelAuthors } from './lib/novelUtils';
 import { CustomCursor } from './components/CustomCursor';
 import { MobileNav } from './components/MobileNav';
 import { FavoriteButton } from './components/FavoriteButton';
@@ -45,8 +46,10 @@ function NovelDetails() {
 
   useEffect(() => {
     async function loadNovel() {
-      const { data } = await supabase.from('novels').select('*, chapters(*)').eq('id', id).maybeSingle();
-      setNovel(data || findLocalNovel(id) || null);
+      const { data } = await supabase.from('novels').select('*, chapters(*), author:profiles(username, full_name)').eq('id', id).maybeSingle();
+      const novel = data || findLocalNovel(id) || null;
+      const finalNovel = novel && data ? (await enrichNovelAuthors([novel]))[0] : novel;
+      setNovel(finalNovel || null);
       setLoading(false);
     }
 
@@ -71,7 +74,7 @@ function NovelDetails() {
         <div className="detail-content">
           <span className="detail-pill">{novel.status || novel.publication_status}</span>
           <h1>{novel.title}</h1>
-          <p className="detail-meta">{novel.author || 'Sin autor'}{novel.translator ? ` · Trad: ${novel.translator}` : ''}</p>
+          <p className="detail-meta">{getNovelAuthorName(novel)}{novel.translator ? ` · Trad: ${novel.translator}` : ''}</p>
           <p className="detail-synopsis">{novel.synopsis || 'Sin sinopsis.'}</p>
 
           {(novel.genres || novel.tags)?.length > 0 && (
@@ -121,8 +124,9 @@ function Reader() {
 
   useEffect(() => {
     async function loadReader() {
-      const { data } = await supabase.from('novels').select('*, chapters(*)').eq('id', novelId).maybeSingle();
-      const foundNovel = data || findLocalNovel(novelId);
+      const { data } = await supabase.from('novels').select('*, chapters(*), author:profiles(username, full_name)').eq('id', novelId).maybeSingle();
+      const foundNovelRaw = data || findLocalNovel(novelId);
+      const foundNovel = data ? (await enrichNovelAuthors([foundNovelRaw]))[0] : foundNovelRaw;
       const sorted = [...(foundNovel?.chapters || [])].sort((a, b) => a.chapter_order - b.chapter_order);
       const current = sorted.find((item) => String(item.id) === String(chapterId));
 

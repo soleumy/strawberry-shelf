@@ -10,7 +10,7 @@ import { Pagination } from '../components/Pagination';
 import { NovelGridSkeleton } from '../components/Skeleton';
 import { SEO } from '../components/SEO';
 import { WHATSAPP_URL, HOME_SECTIONS, NOVELS_PER_PAGE } from '../lib/constants';
-import { mergeNovels, filterNovels, sortNovels, paginate, getLocalNovels } from '../lib/novelUtils';
+import { mergeNovels, filterNovels, sortNovels, paginate, getLocalNovels, getNovelAuthorName } from '../lib/novelUtils';
 
 function scrollToSection(id) {
   if (id === 'inicio') window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -130,11 +130,14 @@ export function HomePage() {
     async function loadNovels() {
       const { data, error } = await supabase
         .from('novels')
-        .select('*, chapters(*)')
+        .select('*, chapters(*), author:profiles(username, full_name)')
         .eq('status', 'approved')
         .order('created_at', { ascending: false });
 
-      if (!error) setNovels(mergeNovels(data || []));
+      if (!error) {
+        const enriched = await enrichNovelAuthors(data || []);
+        setNovels(mergeNovels(enriched));
+      }
       setLoading(false);
     }
 
