@@ -764,3 +764,243 @@ input {
     width: 100%;
   }
 }
+.brand,
+.nav-links button,
+.quote-button,
+.primary-action {
+  border: 0;
+  cursor: pointer;
+}
+
+.nav-links button {
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  padding: .55rem .8rem;
+  font-weight: 900;
+}
+
+.nav-links button:hover,
+.nav-links button.active {
+  background: #ffe4ec;
+  color: #f04f87;
+}
+
+.novel-card,
+.hero-card {
+  display: block;
+  cursor: pointer;
+}
+
+.novel-card:focus-visible,
+.hero-card:focus-visible,
+.chapter-link:focus-visible {
+  outline: 4px solid #ff8fab;
+  outline-offset: 4px;
+}
+
+.contact-panel {
+  position: relative;
+  z-index: 1;
+  margin-top: 2rem;
+  border: 2px solid rgba(255, 178, 198, .78);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, .78);
+  box-shadow: 0 16px 40px rgba(193, 78, 115, .12);
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.contact-panel h2 {
+  margin: 0 0 .5rem;
+  color: #f05a8d;
+  font-family: "Fredoka", "Nunito", system-ui, sans-serif;
+  font-size: 2rem;
+}
+
+.contact-panel p {
+  margin: 0;
+  color: #7a3d55;
+  font-weight: 800;
+}
+
+.detail-page,
+.reader-page {
+  position: relative;
+  z-index: 2;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2rem 1rem 4rem;
+}
+
+.back-link,
+.reader-topbar a,
+.reader-button,
+.chapter-link,
+.reader-navigation button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  border: 2px solid #ffadc4;
+  border-radius: 999px;
+  background: #fff;
+  color: #9b405e;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.back-link {
+  margin-bottom: 1rem;
+  padding: .65rem 1rem;
+}
+
+.detail-card,
+.reader-card {
+  border: 2px solid rgba(255, 178, 198, .9);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, .88);
+  box-shadow: 0 18px 48px rgba(193, 78, 115, .16);
+  backdrop-filter: blur(14px);
+}
+
+.detail-card {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 2rem;
+  padding: 1.3rem;
+}
+
+.detail-cover {
+  overflow: hidden;
+  border: 2px solid #ffd0dc;
+  border-radius: 22px;
+  background: #ffe5ed;
+  aspect-ratio: 3 / 4;
+}
+
+.detail-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.detail-content h1,
+.reader-card h1 {
+  margin: .8rem 0 .5rem;
+  color: #f05a8d;
+  font-family: "Fredoka", "Nunito", system-ui, sans-serif;
+  font-size: clamp(2rem, 5vw, 3.6rem);
+  line-height: .95;
+}
+
+.detail-pill {
+  display: inline-flex;
+  border-radius: 999px;
+  background: #ffe4ec;
+  color: #e85589;
+  padding: .45rem .8rem;
+  font-weight: 900;
+}
+
+.detail-meta,
+.detail-synopsis {
+  color: #7a3d55;
+  font-weight: 800;
+}
+
+.detail-synopsis {
+  line-height: 1.65;
+}
+
+.detail-content h2 {
+  margin-top: 1.5rem;
+  color: #74364e;
+  font-weight: 900;
+}
+
+.chapter-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: .75rem;
+}
+
+.chapter-link {
+  min-height: 52px;
+  padding: .75rem 1rem;
+  border-radius: 18px;
+  justify-content: flex-start;
+}
+
+.chapter-link:hover,
+.back-link:hover,
+.reader-topbar a:hover,
+.reader-navigation button:not(:disabled):hover {
+  background: #ff7fa7;
+  color: #fff;
+  border-color: #ff7fa7;
+}
+
+.reader-topbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.reader-topbar a {
+  padding: .65rem 1rem;
+}
+
+.reader-card {
+  padding: clamp(1.2rem, 4vw, 3rem);
+}
+
+.reader-novel {
+  margin: 0;
+  color: #a1556c;
+  font-weight: 900;
+}
+
+.reader-loading {
+  color: #a1556c;
+  font-weight: 900;
+}
+
+.reader-text {
+  white-space: pre-line;
+  color: #573043;
+  font-size: clamp(1.05rem, 2vw, 1.22rem);
+  font-weight: 700;
+  line-height: 1.9;
+}
+
+.reader-navigation {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1.2rem;
+}
+
+.reader-navigation button {
+  min-height: 46px;
+  padding: .7rem 1.1rem;
+  cursor: pointer;
+}
+
+.reader-navigation button:disabled {
+  cursor: not-allowed;
+  opacity: .38;
+}
+
+@media (max-width: 760px) {
+  .detail-card {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-cover {
+    max-width: 320px;
+    margin: 0 auto;
+    width: 100%;
+  }
+}

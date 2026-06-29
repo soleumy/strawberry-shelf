@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { BrowserRouter, Link, Route, Routes } from 'react-router-dom';
+import { HashRouter, Link, Route, Routes } from 'react-router-dom';
 import { BookOpen, Heart, Search, Sparkles, Star, Wand2 } from 'lucide-react';
 import { NOVELS } from './utils/data';
 import { AppProvider } from './context/AppContext';
@@ -18,7 +18,22 @@ function cleanText(value) {
     .replace(/Ã±/g, 'ñ')
     .replace(/â€¢/g, '•')
     .replace(/â•¹/g, ':')
+    .replace(/ÃƒÂ³/g, 'ó')
+    .replace(/ÃƒÂ­/g, 'í')
+    .replace(/ÃƒÂ©/g, 'é')
+    .replace(/ÃƒÂ¡/g, 'á')
+    .replace(/ÃƒÂº/g, 'ú')
+    .replace(/ÃƒÂ±/g, 'ñ')
     .trim();
+}
+
+function scrollToSection(id) {
+  if (id === 'inicio') {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    return;
+  }
+
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
 }
 
 function HomePage() {
@@ -47,21 +62,21 @@ function HomePage() {
 
       <header className="mx-auto max-w-7xl px-4 pt-4 sm:px-6 lg:px-8">
         <nav className="nav-bubble">
-          <a href="#inicio" className="brand">
+          <button type="button" className="brand" onClick={() => scrollToSection('inicio')}>
             <span className="brand-mark">🍓</span>
             <span className="brand-title">strawberry shelf</span>
-          </a>
+          </button>
 
           <div className="nav-links">
-            <a className="active" href="#inicio">Inicio</a>
-            <a href="#catalogo">Catálogo</a>
-            <a href="#servicios">Servicios</a>
-            <a href="#contacto">Contacto</a>
+            <button type="button" className="active" onClick={() => scrollToSection('inicio')}>Inicio</button>
+            <button type="button" onClick={() => scrollToSection('catalogo')}>Catálogo</button>
+            <button type="button" onClick={() => scrollToSection('servicios')}>Servicios</button>
+            <button type="button" onClick={() => scrollToSection('contacto')}>Contacto</button>
           </div>
 
-          <a className="quote-button" href="#contacto">
+          <button type="button" className="quote-button" onClick={() => scrollToSection('contacto')}>
             Pedir presupuesto <Heart size={16} fill="currentColor" />
-          </a>
+          </button>
         </nav>
       </header>
 
@@ -80,9 +95,9 @@ function HomePage() {
             </p>
 
             <div className="hero-actions">
-              <a href="#catalogo" className="primary-action">
+              <button type="button" className="primary-action" onClick={() => scrollToSection('catalogo')}>
                 Ver catálogo <BookOpen size={18} />
-              </a>
+              </button>
               <span className="soft-note">{NOVELS.length} novelas disponibles</span>
             </div>
 
@@ -155,7 +170,7 @@ function HomePage() {
           </div>
 
           <div className="novel-grid">
-            {filteredNovels.slice(0, 60).map((novel) => (
+            {filteredNovels.map((novel) => (
               <Link key={novel.id} to={`/novel/${novel.id}`} className="novel-card">
                 <div className="cover-frame">
                   <img src={novel.cover} alt={cleanText(novel.title)} loading="lazy" />
@@ -180,6 +195,11 @@ function HomePage() {
             <div className="empty-state">No encontré novelas con ese filtro.</div>
           )}
         </section>
+
+        <section id="contacto" className="contact-panel">
+          <h2>Contacto</h2>
+          <p>Tu historia en buenas manos. Escríbeme para presupuestos o proyectos personalizados.</p>
+        </section>
       </main>
     </div>
   );
@@ -188,13 +208,13 @@ function HomePage() {
 export default function App() {
   return (
     <AppProvider>
-      <BrowserRouter>
+      <HashRouter>
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/novel/:id" element={<NovelDetails />} />
           <Route path="/novel/:novelId/chapter/:chapterId" element={<Reader />} />
         </Routes>
-      </BrowserRouter>
+      </HashRouter>
     </AppProvider>
   );
 }

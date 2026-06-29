@@ -13,6 +13,12 @@ function cleanText(value) {
     .replace(/Ã±/g, 'ñ')
     .replace(/â€¢/g, '•')
     .replace(/â•¹/g, ':')
+    .replace(/ÃƒÂ³/g, 'ó')
+    .replace(/ÃƒÂ­/g, 'í')
+    .replace(/ÃƒÂ©/g, 'é')
+    .replace(/ÃƒÂ¡/g, 'á')
+    .replace(/ÃƒÂº/g, 'ú')
+    .replace(/ÃƒÂ±/g, 'ñ')
     .trim();
 }
 
@@ -44,7 +50,9 @@ export const NovelDetails = () => {
 
         <div className="detail-content">
           <span className="detail-pill">{novel.status || 'Disponible'}</span>
+
           <h1>{cleanText(novel.title)}</h1>
+
           <p className="detail-meta">
             {cleanText(novel.author)} · {novel.chaptersCount} capítulos
           </p>
