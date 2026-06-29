@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { BookOpen, Clock, Heart, LibraryBig } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { NOVELS } from '../utils/data';
+import { MobileNav } from '../components/MobileNav';
 
 const STATUS_LABELS = {
   reading: 'Leyendo',
@@ -12,12 +13,13 @@ const STATUS_LABELS = {
 };
 
 const STATUS_TABS = [
-  { id: 'favorites', label: 'Favoritos', icon: Heart },
-  { id: 'reading', label: 'Leyendo', icon: BookOpen },
-  { id: 'want_to_read', label: 'Quiero leer', icon: LibraryBig },
-  { id: 'completed', label: 'Terminadas', icon: BookOpen },
-  { id: 'paused', label: 'En pausa', icon: Clock },
-  { id: 'history', label: 'Historial', icon: Clock },
+  { id: 'favorites', label: '❤️ Favoritos', icon: Heart },
+  { id: 'reading', label: '📖 Leyendo', icon: BookOpen },
+  { id: 'want_to_read', label: '📚 Quiero leer', icon: LibraryBig },
+  { id: 'completed', label: '✅ Terminadas', icon: BookOpen },
+  { id: 'paused', label: '⏸ En pausa', icon: Clock },
+  { id: 'history', label: '🕓 Historial', icon: Clock },
+  { id: 'downloaded', label: '📥 Descargadas', icon: BookOpen },
 ];
 
 function normalizeLocalNovel(novel) {
@@ -149,6 +151,10 @@ export function Library() {
       }));
     }
 
+    if (activeTab === 'downloaded') {
+      return [];
+    }
+
     if (activeTab === 'history') {
       return history.map((item) => ({
         ...item,
@@ -190,7 +196,11 @@ export function Library() {
 
         {loading && <p className="form-message">Cargando biblioteca...</p>}
 
-        {!loading && visibleItems.length === 0 && (
+        {!loading && activeTab === 'downloaded' && (
+          <div className="empty-state">Descargas offline — próximamente con PWA.</div>
+        )}
+
+        {!loading && activeTab !== 'downloaded' && visibleItems.length === 0 && (
           <div className="empty-state">
             Todavía no hay novelas en esta sección.
           </div>
@@ -205,6 +215,8 @@ export function Library() {
           ))}
         </div>
       </section>
+
+      <MobileNav />
     </main>
   );
 }
