@@ -93,21 +93,6 @@ export function Collections() {
     </section>
   );
 }
-import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Plus, Trash2 } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../context/AuthContext';
-
-export function Collections() {
-  const { session } = useAuth();
-  const [collections, setCollections] = useState([]);
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: '', description: '', is_public: true });
-  const [message, setMessage] = useState('');
-
-  async function load() {
-    if (!session?.user) return;
 
     const { data } = await supabase
       .from('collections')
