@@ -818,6 +818,7 @@ export default function App() {
         <Route path="/novel/:id" element={<NovelDetails />} />
         <Route path="/novel/:novelId/chapter/:chapterId" element={<Reader />} />
         <Route path="/user/:id" element={<UserProfile />} />
+        <Route path="/profile/edit" element={<EditProfile />} />
         
         <Route path="/dashboard" element={<Dashboard />} />
       </Routes>
