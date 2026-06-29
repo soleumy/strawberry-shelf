@@ -1,32 +1,25 @@
-import React, { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import React, { useEffect, useRef, useState } from 'react';
 
 export const CustomCursor = () => {
-  const [position, setPosition] = useState({ x: -100, y: -100 });
+  const cursorRef = useRef(null);
   const [isHovered, setIsHovered] = useState(false);
 
   useEffect(() => {
     const move = (event) => {
-      setPosition({ x: event.clientX, y: event.clientY });
+      if (cursorRef.current) {
+        cursorRef.current.style.transform = `translate3d(${event.clientX - 13}px, ${event.clientY - 13}px, 0)`;
+      }
+
       setIsHovered(Boolean(event.target.closest('a, button, input, textarea, select, label')));
     };
 
-    window.addEventListener('mousemove', move);
+    window.addEventListener('mousemove', move, { passive: true });
     return () => window.removeEventListener('mousemove', move);
   }, []);
 
   return (
-    <motion.div
-      className="custom-cursor"
-      animate={{
-        x: position.x - 13,
-        y: position.y - 13,
-        scale: isHovered ? 1.35 : 1,
-        rotate: isHovered ? -12 : 0,
-      }}
-      transition={{ type: 'spring', damping: 24, stiffness: 420, mass: 0.2 }}
-    >
+    <div ref={cursorRef} className={`custom-cursor ${isHovered ? 'is-hovered' : ''}`}>
       🍓
-    </motion.div>
+    </div>
   );
 };

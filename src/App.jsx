@@ -1,8 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { EditProfile } from './pages/EditProfile';
+import { Library } from './pages/Library';
+import { ReadingStatusButton } from './components/ReadingStatusButton';
+import { ContinueReading } from './components/ContinueReading';
+import { Dashboard } from './pages/Dashboard';
+import { UserProfile } from './pages/UserProfile';
+import { FavoriteButton } from './components/FavoriteButton';
 import { HashRouter, Link, Route, Routes, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, BookOpen, Check, Heart, Home, Search, Send, Sparkles, Upload, UserRound, X } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import { CustomCursor } from './components/CustomCursor';
+import { NOVELS } from './utils/data';
 
 const WHATSAPP_URL = 'https://wa.link/4rpknp';
 
@@ -18,6 +26,45 @@ function safeFileName(name) {
 function getFileType(file) {
   if (!file) return 'text';
   return file.name.toLowerCase().endsWith('.pdf') ? 'pdf' : 'text';
+}
+
+function normalizeLocalNovel(novel) {
+  return {
+    ...novel,
+    id: String(novel.id),
+    status: 'approved',
+    cover_url: novel.cover,
+    source_type: 'text',
+    created_at: null,
+    chapters: (novel.chapters || []).map((chapter, index) => ({
+      ...chapter,
+      id: String(chapter.id),
+      title: chapter.title || `Capítulo ${index + 1}`,
+      chapter_order: index + 1,
+      content: null,
+      file_url: chapter.file,
+      file_type: 'text',
+    })),
+  };
+}
+
+const LOCAL_NOVELS = NOVELS.map(normalizeLocalNovel);
+
+function mergeNovels(remoteNovels = []) {
+  const normalizedRemote = remoteNovels.map((novel) => ({
+    ...novel,
+    id: String(novel.id),
+    chapters: novel.chapters || [],
+  }));
+
+  const remoteIds = new Set(normalizedRemote.map((novel) => novel.id));
+  const localOnly = LOCAL_NOVELS.filter((novel) => !remoteIds.has(novel.id));
+
+  return [...normalizedRemote, ...localOnly];
+}
+
+function findLocalNovel(id) {
+  return LOCAL_NOVELS.find((novel) => novel.id === String(id));
 }
 
 function AuthBox({ session, profile, reloadSession }) {
@@ -39,8 +86,17 @@ function AuthBox({ session, profile, reloadSession }) {
       return;
     }
 
-    setMessage(mode === 'login' ? 'Sesión iniciada.' : 'Cuenta creada.');
-    reloadSession();
+    if (result.data?.user) {
+  await supabase.from('profiles').upsert({
+    id: result.data.user.id,
+    email: result.data.user.email,
+    display_name: result.data.user.email?.split('@')[0] || 'Lector',
+    username: result.data.user.email?.split('@')[0]?.toLowerCase().replace(/[^a-z0-9_]/g, '') || null,
+  });
+}
+
+setMessage(mode === 'login' ? 'Sesión iniciada.' : 'Cuenta creada.');
+reloadSession();
   }
 
   async function logout() {
@@ -49,12 +105,26 @@ function AuthBox({ session, profile, reloadSession }) {
   }
 
   if (session) {
+    const userId = session.user.id;
+
     return (
       <div className="auth-card">
         <span className="section-pill"><UserRound size={16} /> Sesión activa</span>
         <h3>{session.user.email}</h3>
         <p>{profile?.role === 'admin' ? 'Administrador' : 'Usuario'}</p>
-        <button type="button" className="secondary-action" onClick={logout}>Cerrar sesión</button>
+
+        <label>
+          ID de usuario
+          <input value={userId} readOnly onFocus={(event) => event.target.select()} />
+        </label>
+
+        <button type="button" className="secondary-action" onClick={() => navigator.clipboard?.writeText(userId)}>
+          Copiar ID
+        </button>
+
+        <button type="button" className="secondary-action" onClick={logout}>
+          Cerrar sesión
+        </button>
       </div>
     );
   }
@@ -101,8 +171,8 @@ function UploadNovel({ session, reloadNovels }) {
     if (!file) return null;
 
     const path = `${session.user.id}/${Date.now()}-${safeFileName(file.name)}`;
-
     const { error } = await supabase.storage.from(bucket).upload(path, file);
+
     if (error) throw error;
 
     const { data } = supabase.storage.from(bucket).getPublicUrl(path);
@@ -295,7 +365,7 @@ function AdminPanel({ profile, reloadNovels }) {
 function HomePage() {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
-  const [novels, setNovels] = useState([]);
+  const [novels, setNovels] = useState(LOCAL_NOVELS);
   const [searchQuery, setSearchQuery] = useState('');
 
   async function loadSession() {
@@ -307,7 +377,7 @@ function HomePage() {
         .from('profiles')
         .select('*')
         .eq('id', data.session.user.id)
-        .single();
+        .maybeSingle();
 
       setProfile(profileData || null);
     } else {
@@ -316,13 +386,18 @@ function HomePage() {
   }
 
   async function loadNovels() {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('novels')
       .select('*, chapters(*)')
       .eq('status', 'approved')
       .order('created_at', { ascending: false });
 
-    setNovels(data || []);
+    if (error) {
+      setNovels(LOCAL_NOVELS);
+      return;
+    }
+
+    setNovels(mergeNovels(data || []));
   }
 
   useEffect(() => {
@@ -348,7 +423,6 @@ function HomePage() {
 
   return (
     <div className="site-shell min-h-screen overflow-hidden">
-      <CustomCursor />
       <div className="sparkle-field" />
 
       <header className="mx-auto max-w-7xl px-4 pt-4 sm:px-6 lg:px-8">
@@ -358,13 +432,17 @@ function HomePage() {
             <span className="brand-title">strawberry shelf</span>
           </button>
 
-          <div className="nav-links">
-            <button type="button" className="active" onClick={() => scrollToSection('inicio')}>Inicio</button>
-            <button type="button" onClick={() => scrollToSection('sobre-mi')}>Sobre mí</button>
-            <button type="button" onClick={() => scrollToSection('catalogo')}>Catálogo</button>
-            <button type="button" onClick={() => scrollToSection('subir-novela')}>Subir novela</button>
-            <button type="button" onClick={() => scrollToSection('admin')}>Admin</button>
-          </div>
+<div className="nav-links">
+  <button type="button" className="active" onClick={() => scrollToSection('inicio')}>Inicio</button>
+  <button type="button" onClick={() => scrollToSection('sobre-mi')}>Sobre mí</button>
+  <button type="button" onClick={() => scrollToSection('catalogo')}>Catálogo</button>
+  <button type="button" onClick={() => scrollToSection('subir-novela')}>Subir novela</button>
+  <button type="button" onClick={() => scrollToSection('admin')}>Admin</button>
+
+  <Link to="/dashboard">Mi Panel</Link>
+  <Link to="/library">Biblioteca</Link>
+  <Link to="/profile/edit">Perfil</Link>
+</div>
 
           <a className="quote-button" href={WHATSAPP_URL} target="_blank" rel="noreferrer">
             Contáctame <Heart size={16} fill="currentColor" />
@@ -397,7 +475,7 @@ function HomePage() {
             <Link to={`/novel/${featured.id}`} className="hero-card">
               <div className="speech-bubble">Cada historia en buenas manos ♡</div>
               <div className="featured-cover-wrap">
-                <img src={featured.cover_url || '/placeholder-cover.png'} alt={featured.title} />
+                <img src={featured.cover_url || featured.cover || '/placeholder-cover.png'} alt={featured.title} />
               </div>
               <div className="featured-info">
                 <span>★ Destacada</span>
@@ -440,7 +518,7 @@ function HomePage() {
             {filteredNovels.map((novel) => (
               <Link key={novel.id} to={`/novel/${novel.id}`} className="novel-card">
                 <div className="cover-frame">
-                  <img src={novel.cover_url || '/placeholder-cover.png'} alt={novel.title} loading="lazy" />
+                  <img src={novel.cover_url || novel.cover || '/placeholder-cover.png'} alt={novel.title} loading="lazy" />
                   <span>{novel.chapters?.length || 1} cap.</span>
                 </div>
                 <div className="novel-body">
@@ -482,15 +560,15 @@ function HomePage() {
   );
 }
 
-function NovelDetails() {
+function NovelDetails({ session }) {
   const { id } = useParams();
   const [novel, setNovel] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadNovel() {
-      const { data } = await supabase.from('novels').select('*, chapters(*)').eq('id', id).single();
-      setNovel(data);
+      const { data } = await supabase.from('novels').select('*, chapters(*)').eq('id', id).maybeSingle();
+      setNovel(data || findLocalNovel(id) || null);
       setLoading(false);
     }
 
@@ -508,15 +586,22 @@ function NovelDetails() {
 
       <section className="detail-card">
         <div className="detail-cover">
-          <img src={novel.cover_url || '/placeholder-cover.png'} alt={novel.title} />
+          <img src={novel.cover_url || novel.cover || '/placeholder-cover.png'} alt={novel.title} />
         </div>
 
         <div className="detail-content">
           <span className="detail-pill">{novel.status}</span>
           <h1>{novel.title}</h1>
           <p className="detail-meta">{novel.author || 'Sin autor'}</p>
-          <p className="detail-synopsis">{novel.synopsis || 'Sin sinopsis.'}</p>
-          <h2>Capítulos</h2>
+       <p className="detail-synopsis">{novel.synopsis || 'Sin sinopsis.'}</p>
+
+<div className="detail-actions">
+  <FavoriteButton novelId={novel.id} />
+  <ReadingStatusButton novelId={novel.id} />
+  <ContinueReading novelId={novel.id} />
+</div>
+
+<h2>Capítulos</h2>
 
           <div className="chapter-list">
             {chapters.map((chapter) => (
@@ -534,51 +619,164 @@ function NovelDetails() {
 function Reader() {
   const { novelId, chapterId } = useParams();
   const navigate = useNavigate();
+
   const [novel, setNovel] = useState(null);
   const [chapter, setChapter] = useState(null);
   const [chapters, setChapters] = useState([]);
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(true);
+  const [progress, setProgress] = useState(0);
 
   useEffect(() => {
     async function loadReader() {
-      const { data } = await supabase.from('novels').select('*, chapters(*)').eq('id', novelId).single();
-      const sorted = [...(data?.chapters || [])].sort((a, b) => a.chapter_order - b.chapter_order);
-      const current = sorted.find((item) => item.id === chapterId);
+      const { data } = await supabase
+        .from('novels')
+        .select('*, chapters(*)')
+        .eq('id', novelId)
+        .maybeSingle();
 
-      setNovel(data);
+      const foundNovel = data || findLocalNovel(novelId);
+      const sorted = [...(foundNovel?.chapters || [])].sort((a, b) => a.chapter_order - b.chapter_order);
+      const current = sorted.find((item) => String(item.id) === String(chapterId));
+
+      setNovel(foundNovel || null);
       setChapters(sorted);
-      setChapter(current);
+      setChapter(current || null);
 
-      if (current?.content) setText(current.content);
-      else if (current?.file_url && current.file_type !== 'pdf') {
+      if (current?.content) {
+        setText(current.content);
+      } else if (current?.file_url && current.file_type !== 'pdf') {
         const response = await fetch(current.file_url);
         setText(await response.text());
       }
 
       setLoading(false);
+
+      const { data: sessionData } = await supabase.auth.getSession();
+
+      if (sessionData.session?.user && foundNovel && current) {
+        const { data: historyData } = await supabase
+          .from('reading_history')
+          .select('*')
+          .eq('user_id', sessionData.session.user.id)
+          .eq('novel_id', foundNovel.id)
+          .maybeSingle();
+
+        if (historyData?.chapter_id === current.id && historyData.scroll_position > 0) {
+          setTimeout(() => {
+            window.scrollTo({
+              top: historyData.scroll_position,
+              behavior: 'smooth',
+            });
+          }, 400);
+        }
+      }
     }
 
     loadReader();
   }, [novelId, chapterId]);
 
-  if (loading) return <div className="reader-page"><div className="reader-card">Cargando...</div></div>;
-  if (!novel || !chapter) return <div className="reader-page"><div className="reader-card"><h1>Capítulo no encontrado</h1><Link to="/" className="reader-button">Volver</Link></div></div>;
+  useEffect(() => {
+    function updateProgress() {
+      const scrollTop = window.scrollY;
+      const totalHeight = document.documentElement.scrollHeight - window.innerHeight;
 
-  const index = chapters.findIndex((item) => item.id === chapter.id);
+      if (totalHeight <= 0) {
+        setProgress(0);
+        return;
+      }
+
+      const nextProgress = Math.min(
+        100,
+        Math.max(0, Math.round((scrollTop / totalHeight) * 100))
+      );
+
+      setProgress(nextProgress);
+    }
+
+    updateProgress();
+
+    window.addEventListener('scroll', updateProgress, { passive: true });
+    window.addEventListener('resize', updateProgress);
+
+    return () => {
+      window.removeEventListener('scroll', updateProgress);
+      window.removeEventListener('resize', updateProgress);
+    };
+  }, []);
+
+  useEffect(() => {
+    async function saveHistory() {
+      const { data: sessionData } = await supabase.auth.getSession();
+
+      if (!sessionData.session?.user || !novel || !chapter) return;
+
+      await supabase.from('reading_history').upsert({
+        user_id: sessionData.session.user.id,
+        novel_id: novel.id,
+        chapter_id: chapter.id,
+        scroll_position: Math.floor(window.scrollY),
+        progress_percent: progress,
+        updated_at: new Date().toISOString(),
+      });
+    }
+
+    if (!novel || !chapter) return;
+
+    const interval = setInterval(saveHistory, 5000);
+
+    return () => {
+      clearInterval(interval);
+      saveHistory();
+    };
+  }, [novel, chapter, progress]);
+
+  if (loading) {
+    return (
+      <div className="reader-page">
+        <div className="reader-card">Cargando...</div>
+      </div>
+    );
+  }
+
+  if (!novel || !chapter) {
+    return (
+      <div className="reader-page">
+        <div className="reader-card">
+          <h1>Capítulo no encontrado</h1>
+          <Link to="/" className="reader-button">Volver</Link>
+        </div>
+      </div>
+    );
+  }
+
+  const index = chapters.findIndex((item) => String(item.id) === String(chapter.id));
   const previous = index > 0 ? chapters[index - 1] : null;
   const next = index < chapters.length - 1 ? chapters[index + 1] : null;
 
   return (
     <main className="reader-page">
       <div className="reader-topbar">
-        <Link to={`/novel/${novel.id}`}><ArrowLeft size={17} /> Índice</Link>
-        <Link to="/"><Home size={17} /> Catálogo</Link>
+        <Link to={`/novel/${novel.id}`}>
+          <ArrowLeft size={17} /> Índice
+        </Link>
+
+        <Link to="/">
+          <Home size={17} /> Catálogo
+        </Link>
       </div>
 
       <article className="reader-card">
         <p className="reader-novel">{novel.title}</p>
         <h1>{chapter.title}</h1>
+
+        <div className="reading-progress">
+          <span>Progreso</span>
+          <strong>{progress}%</strong>
+          <div>
+            <i style={{ width: `${progress}%` }} />
+          </div>
+        </div>
 
         {chapter.file_type === 'pdf' && chapter.file_url ? (
           <iframe className="pdf-reader" src={chapter.file_url} title={chapter.title} />
@@ -588,20 +786,40 @@ function Reader() {
       </article>
 
       <div className="reader-navigation">
-        <button type="button" disabled={!previous} onClick={() => navigate(`/novel/${novel.id}/chapter/${previous.id}`)}>Anterior</button>
-        <button type="button" disabled={!next} onClick={() => navigate(`/novel/${novel.id}/chapter/${next.id}`)}>Siguiente</button>
+        <button
+          type="button"
+          disabled={!previous}
+          onClick={() => navigate(`/novel/${novel.id}/chapter/${previous.id}`)}
+        >
+          Anterior
+        </button>
+
+        <button
+          type="button"
+          disabled={!next}
+          onClick={() => navigate(`/novel/${novel.id}/chapter/${next.id}`)}
+        >
+          Siguiente
+        </button>
       </div>
     </main>
   );
 }
 
+
 export default function App() {
   return (
     <HashRouter>
+      <CustomCursor />
+
       <Routes>
         <Route path="/" element={<HomePage />} />
+        <Route path="/library" element={<Library />} />
         <Route path="/novel/:id" element={<NovelDetails />} />
         <Route path="/novel/:novelId/chapter/:chapterId" element={<Reader />} />
+        <Route path="/user/:id" element={<UserProfile />} />
+        
+        <Route path="/dashboard" element={<Dashboard />} />
       </Routes>
     </HashRouter>
   );
