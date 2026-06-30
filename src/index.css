@@ -2760,3 +2760,927 @@ input {
   opacity: .45;
   cursor: not-allowed;
 }
+.reader-theme-light {
+  background: #fff1f5;
+}
+
+.reader-theme-light .reader-card {
+  background: rgba(255, 255, 255, .9);
+  color: #573043;
+}
+
+.reader-theme-dark {
+  background: #1a1218;
+  color: #f5e6ee;
+}
+
+.reader-theme-dark .reader-card {
+  background: #2a1f28;
+  border-color: #4a3040;
+  color: #f5e6ee;
+}
+
+.reader-theme-dark .reader-text {
+  color: #f5e6ee;
+}
+
+.reader-theme-sepia {
+  background: #f3e4cf;
+  color: #5c422d;
+}
+
+.reader-theme-sepia .reader-card {
+  background: #fff4df;
+  border-color: #d7b98f;
+  color: #5c422d;
+}
+
+.reader-theme-sepia .reader-text {
+  color: #5c422d;
+}
+
+.reader-theme-sepia .reader-novel,
+.reader-theme-sepia .reading-progress span,
+.reader-theme-sepia .reading-progress strong {
+  color: #8a6040;
+}
+.reader-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: .5rem;
+  margin-bottom: 1rem;
+}
+
+.reader-toolbar button {
+  display: inline-grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 2px solid #ffc1d1;
+  border-radius: 14px;
+  background: #fff;
+  color: #e85589;
+  cursor: pointer;
+  transition: transform .18s ease, background .18s ease, color .18s ease;
+}
+
+.reader-toolbar button:hover {
+  background: #ff7fa7;
+  color: #fff;
+  transform: translateY(-2px);
+}
+
+.reader-theme-dark .reader-toolbar button {
+  background: #33242e;
+  border-color: #5a3c4e;
+  color: #ffd4e1;
+}
+
+.reader-theme-dark .reader-toolbar button:hover {
+  background: #e85589;
+  color: #fff;
+}
+
+.reader-theme-sepia .reader-toolbar button {
+  background: #fff4df;
+  border-color: #d7b98f;
+  color: #8a6040;
+}
+
+.reader-theme-sepia .reader-toolbar button:hover {
+  background: #b98254;
+  color: #fff;
+}
+.reader-notice {
+  margin: 0 0 1rem auto;
+  width: fit-content;
+  max-width: 100%;
+  border: 2px solid #ffc1d1;
+  border-radius: 14px;
+  background: #fff0f5;
+  color: #e85589;
+  padding: .65rem .9rem;
+  font-size: .86rem;
+  font-weight: 900;
+}
+
+.reader-theme-dark .reader-notice {
+  background: #33242e;
+  border-color: #5a3c4e;
+  color: #ffd4e1;
+}
+
+.reader-theme-sepia .reader-notice {
+  background: #fff4df;
+  border-color: #d7b98f;
+  color: #8a6040;
+}
+.reader-bookmarks-panel {
+  margin-bottom: 1rem;
+  border: 2px solid #ffc1d1;
+  border-radius: 18px;
+  background: rgba(255, 240, 245, .92);
+  padding: 1rem;
+}
+
+.reader-bookmarks-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  margin-bottom: .75rem;
+}
+
+.reader-bookmarks-head strong {
+  color: #e85589;
+}
+
+.reader-bookmarks-head button {
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+  color: #e85589;
+  padding: .45rem .8rem;
+  font-size: .8rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.reader-bookmarks-panel p {
+  margin: 0;
+  color: #9b5068;
+  font-weight: 800;
+}
+
+.reader-bookmarks-list {
+  display: grid;
+  gap: .6rem;
+}
+
+.reader-bookmark-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: .5rem;
+  align-items: center;
+}
+
+.reader-bookmark-item > button:first-child {
+  display: grid;
+  gap: .15rem;
+  width: 100%;
+  border: 0;
+  border-radius: 14px;
+  background: #fff;
+  color: #7a324b;
+  padding: .75rem .9rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.reader-bookmark-item span {
+  font-weight: 950;
+}
+
+.reader-bookmark-item small {
+  color: #a4526b;
+  font-weight: 800;
+}
+
+.reader-bookmark-delete {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: 0;
+  border-radius: 12px;
+  background: #ffe1eb;
+  color: #e85589;
+  cursor: pointer;
+}
+
+.reader-bookmark-delete:hover,
+.reader-bookmarks-head button:hover,
+.reader-bookmark-item > button:first-child:hover {
+  background: #ff7fa7;
+  color: #fff;
+}
+
+.reader-theme-dark .reader-bookmarks-panel {
+  background: #2a1f28;
+  border-color: #5a3c4e;
+}
+
+.reader-theme-dark .reader-bookmarks-head strong,
+.reader-theme-dark .reader-bookmarks-panel p {
+  color: #ffd4e1;
+}
+
+.reader-theme-dark .reader-bookmarks-head button,
+.reader-theme-dark .reader-bookmark-item > button:first-child,
+.reader-theme-dark .reader-bookmark-delete {
+  background: #33242e;
+  color: #ffd4e1;
+}
+
+.reader-theme-sepia .reader-bookmarks-panel {
+  background: #fff4df;
+  border-color: #d7b98f;
+}
+
+.reader-theme-sepia .reader-bookmarks-head strong,
+.reader-theme-sepia .reader-bookmarks-panel p,
+.reader-theme-sepia .reader-bookmark-item small {
+  color: #8a6040;
+}
+
+.reader-theme-sepia .reader-bookmarks-head button,
+.reader-theme-sepia .reader-bookmark-item > button:first-child,
+.reader-theme-sepia .reader-bookmark-delete {
+  background: #fffaf0;
+  color: #8a6040;
+}
+.reader-notes-panel {
+  margin-bottom: 1rem;
+  border: 2px solid #ffc1d1;
+  border-radius: 18px;
+  background: rgba(255, 240, 245, .92);
+  padding: 1rem;
+}
+
+.reader-note-form {
+  display: grid;
+  gap: .75rem;
+  margin-bottom: 1rem;
+}
+
+.reader-note-form textarea {
+  width: 100%;
+  min-height: 110px;
+  resize: vertical;
+  border: 2px solid #ffc1d1;
+  border-radius: 16px;
+  background: #fff;
+  color: #7a324b;
+  outline: none;
+  padding: .85rem 1rem;
+  font: inherit;
+  font-weight: 800;
+}
+
+.reader-note-form textarea:focus {
+  border-color: #ff7fa7;
+}
+
+.reader-note-form button {
+  width: fit-content;
+  border: 0;
+  border-radius: 999px;
+  background: #ff7fa7;
+  color: #fff;
+  padding: .7rem 1rem;
+  font-weight: 950;
+  cursor: pointer;
+}
+
+.reader-note-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: .5rem;
+  align-items: start;
+}
+
+.reader-note-item > button:first-child {
+  display: grid;
+  gap: .35rem;
+  width: 100%;
+  border: 0;
+  border-radius: 14px;
+  background: #fff;
+  color: #7a324b;
+  padding: .85rem .95rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.reader-note-item span {
+  font-weight: 900;
+  line-height: 1.45;
+}
+
+.reader-note-item small {
+  color: #a4526b;
+  font-weight: 800;
+}
+
+.reader-note-item > button:first-child:hover,
+.reader-note-form button:hover {
+  background: #ff7fa7;
+  color: #fff;
+}
+
+.reader-note-item > button:first-child:hover small {
+  color: #fff;
+}
+
+.reader-theme-dark .reader-notes-panel {
+  background: #2a1f28;
+  border-color: #5a3c4e;
+}
+
+.reader-theme-dark .reader-note-form textarea,
+.reader-theme-dark .reader-note-item > button:first-child {
+  background: #33242e;
+  border-color: #5a3c4e;
+  color: #ffd4e1;
+}
+
+.reader-theme-dark .reader-note-item small {
+  color: #f5adc6;
+}
+
+.reader-theme-sepia .reader-notes-panel {
+  background: #fff4df;
+  border-color: #d7b98f;
+}
+
+.reader-theme-sepia .reader-note-form textarea,
+.reader-theme-sepia .reader-note-item > button:first-child {
+  background: #fffaf0;
+  border-color: #d7b98f;
+  color: #8a6040;
+}
+
+.reader-theme-sepia .reader-note-item small {
+  color: #8a6040;
+}
+/* Panel de frases favoritas / highlights */
+.reader-highlights-panel {
+  border: 1px solid #ffc4d5;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 4px 12px rgba(184, 72, 110, 0.08);
+}
+
+.reader-highlight-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.reader-highlight-actions > span {
+  font-size: 0.85rem;
+  font-weight: 750;
+  color: #8f3d59;
+}
+
+.highlight-color-picker {
+  display: flex;
+  gap: 10px;
+}
+
+.highlight-color-picker button {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.highlight-color-picker button:hover {
+  transform: scale(1.1);
+}
+
+.highlight-color-picker button.active {
+  border-color: #ef4f86;
+  transform: scale(1.15);
+}
+
+.highlight-pink {
+  background: linear-gradient(135deg, #ff9cbd, #f05a8d);
+}
+
+.highlight-yellow {
+  background: linear-gradient(135deg, #ffd36f, #ffac55);
+}
+
+.highlight-mint {
+  background: linear-gradient(135deg, #8bcf76, #54a84b);
+}
+
+.highlight-lavender {
+  background: linear-gradient(135deg, #c4a8ff, #9b7dff);
+}
+
+.reader-highlight-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: start;
+  padding: 12px;
+  border: 1px solid #ffc4d5;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.7);
+  margin-bottom: 8px;
+}
+
+.reader-highlight-item button:first-child {
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  width: 100%;
+}
+
+.highlight-text-pink {
+  color: #ef4f86;
+  font-weight: 850;
+  font-style: italic;
+}
+
+.highlight-text-yellow {
+  color: #ffac55;
+  font-weight: 850;
+  font-style: italic;
+}
+
+.highlight-text-mint {
+  color: #54a84b;
+  font-weight: 850;
+  font-style: italic;
+}
+
+.highlight-text-lavender {
+  color: #9b7dff;
+  font-weight: 850;
+  font-style: italic;
+}
+
+/* Variantes dark/sepia para highlights */
+.reader-theme-dark .reader-highlights-panel {
+  background: rgba(37, 20, 30, 0.9);
+  border-color: #ff7da7;
+}
+
+.reader-theme-dark .reader-highlight-actions > span {
+  color: #ffd36f;
+}
+
+.reader-theme-dark .reader-highlight-item {
+  background: rgba(60, 30, 45, 0.7);
+  border-color: #ff7da7;
+}
+
+.reader-theme-sepia .reader-highlights-panel {
+  background: rgba(244, 238, 227, 0.95);
+  border-color: #d4a574;
+}
+
+.reader-theme-sepia .reader-highlight-actions > span {
+  color: #8b5a2b;
+}
+
+.reader-theme-sepia .reader-highlight-item {
+  background: rgba(255, 250, 240, 0.7);
+  border-color: #d4a574;
+}
+/* Badge contador en botones de toolbar */
+.reader-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #ff4f8d;
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 950;
+  padding: 0 4px;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+}
+
+.reader-toolbar button {
+  position: relative;
+}
+
+.reader-toolbar-active {
+  background: #ffe2eb !important;
+  color: #ef4f86 !important;
+}
+
+/* Variantes dark/sepia para badge */
+.reader-theme-dark .reader-badge {
+  background: #ff7da7;
+  border-color: rgba(37, 20, 30, 0.9);
+}
+
+.reader-theme-dark .reader-toolbar-active {
+  background: rgba(255, 125, 167, 0.2) !important;
+  color: #ff9cbd !important;
+}
+
+.reader-theme-sepia .reader-badge {
+  background: #d4a574;
+  border-color: rgba(244, 238, 227, 0.9);
+}
+
+.reader-theme-sepia .reader-toolbar-active {
+  background: rgba(212, 165, 116, 0.2) !important;
+  color: #d4a574 !important;
+}
+/* Badge contador en botones de toolbar */
+.reader-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #ff4f8d;
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 950;
+  padding: 0 4px;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+}
+
+.reader-toolbar button {
+  position: relative;
+}
+
+.reader-toolbar-active {
+  background: #ffe2eb !important;
+  color: #ef4f86 !important;
+}
+
+/* Spinner de carga */
+.reader-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 79, 141, 0.3);
+  border-top-color: #ff4f8d;
+  border-radius: 50%;
+  animation: reader-spin 0.6s linear infinite;
+}
+
+@keyframes reader-spin {
+  to { transform: rotate(360deg); }
+}
+
+.reader-toolbar button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Variantes dark/sepia */
+.reader-theme-dark .reader-badge {
+  background: #ff7da7;
+  border-color: rgba(37, 20, 30, 0.9);
+}
+
+.reader-theme-dark .reader-toolbar-active {
+  background: rgba(255, 125, 167, 0.2) !important;
+  color: #ff9cbd !important;
+}
+
+.reader-theme-dark .reader-spinner {
+  border-color: rgba(255, 125, 167, 0.3);
+  border-top-color: #ff7da7;
+}
+
+.reader-theme-sepia .reader-badge {
+  background: #d4a574;
+  border-color: rgba(244, 238, 227, 0.9);
+}
+
+.reader-theme-sepia .reader-toolbar-active {
+  background: rgba(212, 165, 116, 0.2) !important;
+  color: #d4a574 !important;
+}
+
+.reader-theme-sepia .reader-spinner {
+  border-color: rgba(212, 165, 116, 0.3);
+  border-top-color: #d4a574;
+}
+
+/* Toast mejorado */
+.reader-notice {
+  position: fixed;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 79, 141, 0.95);
+  color: white;
+  padding: 12px 24px;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  box-shadow: 0 4px 20px rgba(255, 79, 141, 0.4);
+  z-index: 1000;
+  animation: reader-notice-in 0.3s ease-out;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+@keyframes reader-notice-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.reader-theme-dark .reader-notice {
+  background: rgba(255, 125, 167, 0.95);
+  box-shadow: 0 4px 20px rgba(255, 125, 167, 0.4);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.reader-theme-sepia .reader-notice {
+  background: rgba(212, 165, 116, 0.95);
+  box-shadow: 0 4px 20px rgba(212, 165, 116, 0.4);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Mobile modals */
+@media (max-width: 768px) {
+  .reader-bookmarks-panel,
+  .reader-notes-panel,
+  .reader-highlights-panel {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 999;
+    background: rgba(255, 255, 255, 0.98);
+    padding: 20px;
+    overflow-y: auto;
+    border-radius: 0;
+    box-shadow: 0 0 0 rgba(0, 0, 0, 0.1);
+  }
+
+  .reader-theme-dark .reader-bookmarks-panel,
+  .reader-theme-dark .reader-notes-panel,
+  .reader-theme-dark .reader-highlights-panel {
+    background: rgba(37, 20, 30, 0.98);
+  }
+
+  .reader-theme-sepia .reader-bookmarks-panel,
+  .reader-theme-sepia .reader-notes-panel,
+  .reader-theme-sepia .reader-highlights-panel {
+    background: rgba(244, 238, 227, 0.98);
+  }
+
+  .reader-notice {
+    bottom: 80px;
+    left: 16px;
+    right: 16px;
+    transform: none;
+    border-radius: 12px;
+  }
+
+  @keyframes reader-notice-in {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+}
+/* Header de comentarios con ordenamiento */
+.comments-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+/* Botón de like en comentarios */
+.comment-liked {
+  color: #ff4f8d !important;
+}
+
+.reader-theme-dark .comment-liked {
+  color: #ff7da7 !important;
+}
+
+.reader-theme-sepia .comment-liked {
+  color: #d4a574 !important;
+}
+/* Distribución de ratings */
+.rating-distribution {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.rating-dist-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.rating-dist-label {
+  min-width: 24px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.rating-dist-bar-bg {
+  flex: 1;
+  height: 8px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.rating-dist-bar-fill {
+  height: 100%;
+  background: #ff4f8d;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.rating-dist-count {
+  min-width: 24px;
+  font-size: 0.8rem;
+  text-align: right;
+  color: #666;
+}
+
+.reader-theme-dark .rating-dist-bar-bg {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.reader-theme-dark .rating-dist-bar-fill {
+  background: #ff7da7;
+}
+
+.reader-theme-dark .rating-dist-count {
+  color: #aaa;
+}
+
+.reader-theme-sepia .rating-dist-bar-bg {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.reader-theme-sepia .rating-dist-bar-fill {
+  background: #d4a574;
+}
+
+.reader-theme-sepia .rating-dist-count {
+  color: #666;
+}
+
+/* Estado de rating activo */
+.rating-star.rating {
+  animation: rating-pulse 0.3s ease;
+}
+
+@keyframes rating-pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+/* Badge de notificaciones no leídas */
+.notification-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  margin-left: 8px;
+  background: #ff4f8d;
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 700;
+  border-radius: 999px;
+}
+
+/* Filtros de notificaciones */
+.notification-filters {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.notification-filter {
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  background: rgba(0, 0, 0, 0.05);
+  color: #666;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.notification-filter:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.notification-filter.active {
+  background: #ff4f8d;
+  color: white;
+}
+
+/* Icono de notificación */
+.notification-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.05);
+  flex-shrink: 0;
+}
+
+/* Header de notificación */
+.notification-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.notification-unread-dot {
+  width: 8px;
+  height: 8px;
+  background: #ff4f8d;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Layout de notificación */
+.notification-item {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.notification-item.read {
+  opacity: 0.6;
+}
+
+.notification-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.notification-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-end;
+}
+
+/* Variantes dark */
+.reader-theme-dark .notification-badge {
+  background: #ff7da7;
+}
+
+.reader-theme-dark .notification-filter {
+  background: rgba(255, 255, 255, 0.1);
+  color: #aaa;
+}
+
+.reader-theme-dark .notification-filter:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.reader-theme-dark .notification-filter.active {
+  background: #ff7da7;
+  color: white;
+}
+
+.reader-theme-dark .notification-icon {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.reader-theme-dark .notification-item {
+  background: rgba(0, 0, 0, 0.2);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.reader-theme-dark .notification-unread-dot {
+  background: #ff7da7;
+}

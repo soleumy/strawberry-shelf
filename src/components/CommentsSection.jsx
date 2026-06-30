@@ -1,11 +1,11 @@
 ﻿import React, { useEffect, useState } from 'react';
-import { Edit2, MessageCircle, Reply, Trash2 } from 'lucide-react';
+import { ArrowUpDown, Edit2, Heart, MessageCircle, Reply, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { ReportButton } from './ReportButton';
 import { addLocalComment, deleteLocalComment, getLocalComments, updateLocalComment } from '../lib/localInteractions';
 
-function CommentItem({ comment, profiles, onReply, onEdit, onDelete, currentUserId, isModerator }) {
+function CommentItem({ comment, profiles, onReply, onEdit, onDelete, onLike, currentUserId, isModerator, isLiked, likeCount, isLiking }) {
   const profile = profiles[comment.user_id];
   const canEdit = comment.local || currentUserId === comment.user_id;
   const canDelete = canEdit || isModerator;
@@ -30,6 +30,17 @@ function CommentItem({ comment, profiles, onReply, onEdit, onDelete, currentUser
         <p>{comment.content}</p>
 
         <div className="comment-actions">
+          {!comment.local && (
+            <button
+              type="button"
+              className={`text-button ${isLiked ? 'comment-liked' : ''}`}
+              onClick={() => onLike(comment.id)}
+              disabled={isLiking}
+            >
+              <Heart size={14} fill={isLiked ? 'currentColor' : 'none'} /> {likeCount || 0}
+            </button>
+          )}
+
           <button type="button" className="text-button" onClick={() => onReply(comment.id)}>
             <Reply size={14} /> Responder
           </button>
@@ -62,6 +73,11 @@ export function CommentsSection({ novelId, chapterId }) {
   const [editing, setEditing] = useState(null);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
+  const [sortBy, setSortBy] = useState('recent');
+  const [likedComments, setLikedComments] = useState(new Set());
+  const [likeCounts, setLikeCounts] = useState({});
+  const [likingComment, setLikingComment] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
 
   async function loadComments() {
     setLoading(true);
@@ -83,7 +99,14 @@ export function CommentsSection({ novelId, chapterId }) {
     const localRows = getLocalComments(novelId, chapterId);
     const byId = new Map();
     [...remoteRows, ...localRows].forEach((row) => byId.set(row.id, row));
-    const rows = [...byId.values()].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    let rows = [...byId.values()];
+
+    if (sortBy === 'popular') {
+      rows.sort((a, b) => (likeCounts[b.id] || 0) - (likeCounts[a.id] || 0));
+    } else {
+      rows.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    }
+
     setComments(rows);
 
     const userIds = [...new Set(rows.map((comment) => comment.user_id).filter(Boolean))].filter((id) => !String(id).startsWith('local'));
@@ -107,17 +130,42 @@ export function CommentsSection({ novelId, chapterId }) {
     }
 
     setProfiles(nextProfiles);
+
+    if (supabase.isConfigured !== false && user) {
+      const { data: likes } = await supabase
+        .from('comment_likes')
+        .select('comment_id')
+        .eq('user_id', user.id);
+
+      const likedSet = new Set((likes || []).map((like) => like.comment_id));
+      setLikedComments(likedSet);
+    }
+
+    if (supabase.isConfigured !== false) {
+      const { data: allLikes } = await supabase
+        .from('comment_likes')
+        .select('comment_id');
+
+      const counts = {};
+      (allLikes || []).forEach((like) => {
+        counts[like.comment_id] = (counts[like.comment_id] || 0) + 1;
+      });
+      setLikeCounts(counts);
+    }
+
     setLoading(false);
   }
 
   useEffect(() => {
     loadComments();
-  }, [novelId, chapterId, user?.id]);
+  }, [novelId, chapterId, user?.id, sortBy]);
 
   async function submit(event) {
     event.preventDefault();
     const trimmed = content.trim();
-    if (!trimmed) return;
+    if (!trimmed || submitting) return;
+
+    setSubmitting(true);
 
     if (editing) {
       if (editing.local) updateLocalComment(editing.id, trimmed);
@@ -156,16 +204,47 @@ export function CommentsSection({ novelId, chapterId }) {
     setContent('');
     setReplyTo(null);
     setEditing(null);
+    setSubmitting(false);
     loadComments();
   }
 
   async function deleteComment(comment) {
-    if (!confirm('¿Eliminar este comentario?')) return;
+    if (!window.confirm('¿Eliminar este comentario?')) return;
 
     if (comment.local) deleteLocalComment(comment.id);
     else if (supabase.isConfigured !== false) await supabase.from('comments').delete().eq('id', comment.id);
 
     loadComments();
+  }
+
+  async function toggleLike(commentId) {
+    if (!user || likingComment) return;
+
+    setLikingComment(commentId);
+
+    const isLiked = likedComments.has(commentId);
+
+    if (isLiked) {
+      await supabase.from('comment_likes').delete().eq('comment_id', commentId).eq('user_id', user.id);
+      setLikedComments((current) => {
+        const next = new Set(current);
+        next.delete(commentId);
+        return next;
+      });
+      setLikeCounts((current) => ({
+        ...current,
+        [commentId]: Math.max(0, (current[commentId] || 0) - 1),
+      }));
+    } else {
+      await supabase.from('comment_likes').insert({ comment_id: commentId, user_id: user.id });
+      setLikedComments((current) => new Set([...current, commentId]));
+      setLikeCounts((current) => ({
+        ...current,
+        [commentId]: (current[commentId] || 0) + 1,
+      }));
+    }
+
+    setLikingComment(null);
   }
 
   const topLevel = comments.filter((comment) => !comment.parent_id);
@@ -177,7 +256,16 @@ export function CommentsSection({ novelId, chapterId }) {
 
   return (
     <section className="comments-section">
-      <h3><MessageCircle size={20} /> Comentarios ({comments.length})</h3>
+      <div className="comments-header">
+        <h3><MessageCircle size={20} /> Comentarios ({comments.length})</h3>
+        <button
+          type="button"
+          className="text-button"
+          onClick={() => setSortBy(sortBy === 'recent' ? 'popular' : 'recent')}
+        >
+          <ArrowUpDown size={16} /> {sortBy === 'recent' ? 'Recientes' : 'Populares'}
+        </button>
+      </div>
 
       <form className="comment-form" onSubmit={submit}>
         {replyTo && <p className="form-message">Respondiendo a un comentario</p>}
@@ -192,8 +280,8 @@ export function CommentsSection({ novelId, chapterId }) {
         />
 
         <div className="comment-form-actions">
-          <button type="submit" className="primary-action">
-            {editing ? 'Guardar' : 'Publicar'}
+          <button type="submit" className="primary-action" disabled={submitting}>
+            {submitting ? 'Publicando...' : (editing ? 'Guardar' : 'Publicar')}
           </button>
 
           {(replyTo || editing) && (
@@ -217,8 +305,12 @@ export function CommentsSection({ novelId, chapterId }) {
               onReply={setReplyTo}
               onEdit={(nextComment) => { setEditing(nextComment); setContent(nextComment.content); }}
               onDelete={deleteComment}
+              onLike={toggleLike}
               currentUserId={user?.id}
               isModerator={isModerator}
+              isLiked={likedComments.has(comment.id)}
+              likeCount={likeCounts[comment.id] || 0}
+              isLiking={likingComment === comment.id}
             />
 
             {getReplies(comment.id).map((reply) => (
@@ -229,8 +321,12 @@ export function CommentsSection({ novelId, chapterId }) {
                   onReply={setReplyTo}
                   onEdit={(nextComment) => { setEditing(nextComment); setContent(nextComment.content); }}
                   onDelete={deleteComment}
+                  onLike={toggleLike}
                   currentUserId={user?.id}
                   isModerator={isModerator}
+                  isLiked={likedComments.has(reply.id)}
+                  likeCount={likeCounts[reply.id] || 0}
+                  isLiking={likingComment === reply.id}
                 />
               </div>
             ))}

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, BookOpen, Calendar, Edit3, Heart, UserRound } from 'lucide-react';
+import { ArrowLeft, BookOpen, Calendar, Edit3, Heart, UserRound, UserPlus, UserMinus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { SiteLayout } from '../components/SiteLayout';
 import { SEO } from '../components/SEO';
@@ -20,9 +20,11 @@ export function UserProfile() {
 
   const [profile, setProfile] = useState(null);
   const [novels, setNovels] = useState([]);
-  const [stats, setStats] = useState({ novels: 0, chapters: 0 });
+  const [stats, setStats] = useState({ novels: 0, chapters: 0, followers: 0, following: 0 });
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followingLoading, setFollowingLoading] = useState(false);
 
   async function loadProfile() {
     setLoading(true);
@@ -71,17 +73,43 @@ export function UserProfile() {
       chapterCount = count || 0;
     }
 
+    // Contar seguidores y seguidos
+    const [{ count: followersCount }, { count: followingCount }] = await Promise.all([
+      supabase
+        .from('follows')
+        .select('*', { count: 'exact', head: true })
+        .eq('following_id', id),
+      supabase
+        .from('follows')
+        .select('*', { count: 'exact', head: true })
+        .eq('follower_id', id),
+    ]);
+
     setStats({
       novels: userNovels.length,
       chapters: chapterCount,
+      followers: followersCount || 0,
+      following: followingCount || 0,
     });
+
+    // Verificar si el usuario actual sigue a este perfil
+    if (userId && userId !== id) {
+      const { data: followData } = await supabase
+        .from('follows')
+        .select('*')
+        .eq('follower_id', userId)
+        .eq('following_id', id)
+        .maybeSingle();
+
+      setIsFollowing(!!followData);
+    }
 
     setLoading(false);
   }
 
   useEffect(() => {
     loadProfile();
-  }, [id]);
+  }, [id, userId]);
 
   if (loading) {
     return (
@@ -110,6 +138,30 @@ export function UserProfile() {
 
   const social = profile.social_links || {};
   const isOwnProfile = userId === id;
+
+  async function toggleFollow() {
+    if (!userId || isOwnProfile) return;
+
+    setFollowingLoading(true);
+
+    if (isFollowing) {
+      await supabase
+        .from('follows')
+        .delete()
+        .eq('follower_id', userId)
+        .eq('following_id', id);
+      setIsFollowing(false);
+      setStats((prev) => ({ ...prev, followers: Math.max(0, prev.followers - 1) }));
+    } else {
+      await supabase
+        .from('follows')
+        .insert({ follower_id: userId, following_id: id });
+      setIsFollowing(true);
+      setStats((prev) => ({ ...prev, followers: prev.followers + 1 }));
+    }
+
+    setFollowingLoading(false);
+  }
 
   return (
     <SiteLayout>
@@ -146,10 +198,19 @@ export function UserProfile() {
               )}
 
               <div className="profile-actions">
-                {isOwnProfile && (
+                {isOwnProfile ? (
                   <Link to="/profile/edit" className="primary-action">
                     <Edit3 size={16} /> Editar perfil
                   </Link>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={toggleFollow}
+                    disabled={followingLoading}
+                    className={isFollowing ? 'secondary-action' : 'primary-action'}
+                  >
+                    {followingLoading ? '...' : isFollowing ? <><UserMinus size={16} /> Dejar de seguir</> : <><UserPlus size={16} /> Seguir</>}
+                  </button>
                 )}
 
                 <Link to="/library" className="secondary-action">
@@ -183,6 +244,16 @@ export function UserProfile() {
             <div>
               <strong>{stats.chapters}</strong>
               <span>Capítulos</span>
+            </div>
+
+            <div>
+              <strong>{stats.followers}</strong>
+              <span>Seguidores</span>
+            </div>
+
+            <div>
+              <strong>{stats.following}</strong>
+              <span>Seguidos</span>
             </div>
           </div>
 
