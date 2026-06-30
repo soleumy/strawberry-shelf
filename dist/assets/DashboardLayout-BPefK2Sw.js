@@ -1,0 +1,16 @@
+import{c as t,u as p,j as a,L as x,B as m}from"./index-B0IIucVq.js";import{u as b,r as j,N as l,L as i,O as y}from"./vendor-CdnXQ27w.js";import{X as f}from"./x-B1h6UX6N.js";import{L as g}from"./layers-BQNnJvfF.js";import{F as N}from"./file-text-Dho-J4N2.js";import{B as k}from"./bell-Dc5U4Ad6.js";import{S as v}from"./settings-HhortuUR.js";import"./supabase-Be25SE7n.js";/**
+ * @license lucide-react v0.300.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */const L=t("LogOut",[["path",{d:"M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4",key:"1uf3rs"}],["polyline",{points:"16 17 21 12 16 7",key:"1gabdz"}],["line",{x1:"21",x2:"9",y1:"12",y2:"12",key:"1uyos4"}]]);/**
+ * @license lucide-react v0.300.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */const z=t("Menu",[["line",{x1:"4",x2:"20",y1:"12",y2:"12",key:"1e0a9i"}],["line",{x1:"4",x2:"20",y1:"6",y2:"6",key:"1owob3"}],["line",{x1:"4",x2:"20",y1:"18",y2:"18",key:"yk5zj1"}]]);/**
+ * @license lucide-react v0.300.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */const S=t("MessageSquare",[["path",{d:"M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z",key:"1lielz"}]]),C=[{path:"novels",label:"Mis novelas",icon:m},{path:"collections",label:"Colecciones",icon:g},{path:"drafts",label:"Borradores",icon:N},{path:"messages",label:"Mensajes",icon:S},{path:"notifications",label:"Notificaciones",icon:k},{path:"settings",label:"Ajustes",icon:v}];function V(){const{user:n,loading:c,signOut:d}=p(),r=b(),[o,e]=j.useState(!1);return c?a.jsx("div",{className:"loading-screen",children:"Accediendo al panel..."}):n?r.pathname==="/dashboard"?a.jsx(l,{to:"/dashboard/novels",replace:!0}):a.jsxs("div",{className:"dashboard-shell kawaii-page",children:[a.jsx("button",{type:"button",className:"dashboard-menu-button",onClick:()=>e(s=>!s),children:o?a.jsx(f,{size:22}):a.jsx(z,{size:22})}),a.jsxs("aside",{className:`dashboard-sidebar-kawaii ${o?"open":""}`,children:[a.jsxs(i,{to:"/",className:"kawaii-logo dashboard-logo",onClick:()=>e(!1),children:[a.jsx("span",{children:"🍓"}),a.jsxs("strong",{children:["strawberry",a.jsx("br",{}),"studio"]})]}),a.jsxs("div",{className:"dashboard-user-card",children:[a.jsx(x,{size:20}),a.jsxs("div",{children:[a.jsx("strong",{children:"Panel creativo"}),a.jsx("p",{children:n.email})]})]}),a.jsx("nav",{className:"dashboard-nav-kawaii",children:C.map(s=>{const h=s.icon,u=r.pathname.includes(`/dashboard/${s.path}`);return a.jsxs(i,{to:s.path,className:u?"active":"",onClick:()=>e(!1),children:[a.jsx(h,{size:17}),s.label]},s.path)})}),a.jsxs("div",{className:"dashboard-sidebar-actions",children:[a.jsx(i,{to:"/",className:"secondary-action",children:"Volver al catálogo"}),a.jsxs("button",{type:"button",className:"secondary-action",onClick:d,children:[a.jsx(L,{size:16})," Cerrar sesión"]})]})]}),o&&a.jsx("button",{type:"button",className:"dashboard-overlay","aria-label":"Cerrar menu",onClick:()=>e(!1)}),a.jsx("main",{className:"dashboard-main-kawaii",children:a.jsx(y,{})})]}):a.jsx(l,{to:"/",replace:!0})}export{V as DashboardLayout};

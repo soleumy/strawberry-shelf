@@ -15,8 +15,8 @@ import { ReaderSettings, useReaderSettings } from './components/ReaderSettings';
 import { ReportButton } from './components/ReportButton';
 import { SEO } from './components/SEO';
 
-// Carga perezosa de vistas secundarias y administrativas
 const HomePage = lazy(() => import('./pages/HomePage').then((m) => ({ default: m.HomePage })));
+const Login = lazy(() => import('./pages/Login').then((m) => ({ default: m.Login })));
 const Library = lazy(() => import('./pages/Library').then((m) => ({ default: m.Library })));
 const UserProfile = lazy(() => import('./pages/UserProfile').then((m) => ({ default: m.UserProfile })));
 const EditProfile = lazy(() => import('./pages/EditProfile').then((m) => ({ default: m.EditProfile })));
@@ -39,6 +39,53 @@ function PageLoader() {
   return <div className="loading-screen">Cargando...</div>;
 }
 
+async function loadRemoteNovel(novelId) {
+  if (supabase.isConfigured === false) return null;
+
+  const { data: novelData, error: novelError } = await supabase
+    .from('novels')
+    .select('*')
+    .eq('id', novelId)
+    .maybeSingle();
+
+  if (novelError || !novelData) return null;
+
+  const { data: chaptersData } = await supabase
+    .from('chapters')
+    .select('*')
+    .eq('novel_id', novelId)
+    .order('chapter_order', { ascending: true });
+
+  let authorProfile = null;
+
+  if (novelData.author_id) {
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('display_name, username')
+      .eq('id', novelData.author_id)
+      .maybeSingle();
+
+    authorProfile = profileData || null;
+  }
+
+  return {
+    ...novelData,
+    id: String(novelData.id),
+    author_profile: authorProfile,
+    chapters: chaptersData || [],
+  };
+}
+
+function getAuthorName(novel) {
+  return novel?.author_profile?.display_name ||
+    novel?.author_profile?.username ||
+    novel?.author?.display_name ||
+    novel?.author?.username ||
+    novel?.author_name_override ||
+    novel?.author ||
+    'Comunidad';
+}
+
 function NovelDetails() {
   const { id } = useParams();
   const [novel, setNovel] = useState(null);
@@ -46,39 +93,47 @@ function NovelDetails() {
 
   useEffect(() => {
     async function loadNovel() {
-      let remoteNovel = null;
+      setLoading(true);
 
-      if (supabase.isConfigured) {
-        const { data } = await supabase
-          .from('novels')
-          .select('*, chapters(*), author:profiles(username, display_name)')
-          .eq('id', id)
-          .maybeSingle();
-        remoteNovel = data;
-      }
-
+      const remoteNovel = await loadRemoteNovel(id);
       const localNovel = findLocalNovel(id);
-      const rawNovel = remoteNovel || localNovel || null;
-      
-      // Enriquecer autores si se obtienen datos válidos de Supabase
-      const finalNovel = rawNovel;
-      
-      setNovel(finalNovel || null);
+      const finalNovel = remoteNovel || localNovel || null;
+
+      setNovel(finalNovel);
       setLoading(false);
     }
 
     loadNovel();
   }, [id]);
 
-  if (loading) return <div className="reader-page"><div className="reader-card">Cargando...</div></div>;
-  if (!novel) return <div className="reader-page"><div className="reader-card"><h1>Novela no encontrada</h1><Link to="/" className="reader-button">Volver</Link></div></div>;
+  if (loading) {
+    return (
+      <div className="reader-page">
+        <div className="reader-card">Cargando...</div>
+      </div>
+    );
+  }
 
-  const chapters = [...(novel.chapters || [])].sort((a, b) => a.chapter_order - b.chapter_order);
+  if (!novel) {
+    return (
+      <div className="reader-page">
+        <div className="reader-card">
+          <h1>Novela no encontrada</h1>
+          <Link to="/" className="reader-button">Volver</Link>
+        </div>
+      </div>
+    );
+  }
+
+  const chapters = [...(novel.chapters || [])].sort((a, b) => Number(a.chapter_order || 0) - Number(b.chapter_order || 0));
 
   return (
     <main className="detail-page">
       <SEO title={novel.title} description={novel.synopsis} image={novel.cover_url || novel.cover} />
-      <Link to="/" className="back-link"><ArrowLeft size={18} /> Volver al catálogo</Link>
+
+      <Link to="/" className="back-link">
+        <ArrowLeft size={18} /> Volver al catálogo
+      </Link>
 
       <section className="detail-card">
         <div className="detail-cover">
@@ -88,11 +143,13 @@ function NovelDetails() {
         <div className="detail-content">
           <span className="detail-pill">{novel.status || novel.publication_status || 'approved'}</span>
           <h1>{novel.title}</h1>
+
           <p className="detail-meta">
-            <span>{novel?.author?.display_name || novel?.author_name_override || 'Comunidad'}</span>
+            <span>{getAuthorName(novel)}</span>
             {novel.translator ? ` · Trad: ${novel.translator}` : ''}
           </p>
-          <p className="detail-synopsis">{novel.synopsis || 'Sin sinopsis.'}</p>
+
+          <p className="detail-synopsis">{novel.synopsis || novel.description || 'Sin sinopsis.'}</p>
 
           {(novel.genres || novel.tags)?.length > 0 && (
             <div className="tag-row">
@@ -113,13 +170,18 @@ function NovelDetails() {
           </div>
 
           <h2>Capítulos ({chapters.length})</h2>
+
           <div className="chapter-list">
-            {chapters.map((chapter, index) => (
-              <Link key={chapter.id} to={`/novel/${novel.id}/chapter/${chapter.id}`} className="chapter-link">
-                <BookOpen size={17} />
-                <span>{chapter.title || `Capítulo ${index + 1}`}</span>
-              </Link>
-            ))}
+            {chapters.length === 0 ? (
+              <p className="muted">Esta novela todavía no tiene capítulos.</p>
+            ) : (
+              chapters.map((chapter, index) => (
+                <Link key={chapter.id} to={`/novel/${novel.id}/chapter/${chapter.id}`} className="chapter-link">
+                  <BookOpen size={17} />
+                  <span>{chapter.title || `Capítulo ${index + 1}`}</span>
+                </Link>
+              ))
+            )}
           </div>
         </div>
       </section>
@@ -143,22 +205,13 @@ function Reader() {
 
   useEffect(() => {
     async function loadReader() {
-      let remoteNovel = null;
+      setLoading(true);
 
-      if (supabase.isConfigured) {
-        const { data } = await supabase
-          .from('novels')
-          .select('*, chapters(*), author:profiles(username, display_name)')
-          .eq('id', novelId)
-          .maybeSingle();
-        remoteNovel = data;
-      }
-
+      const remoteNovel = await loadRemoteNovel(novelId);
       const localNovel = findLocalNovel(novelId);
-      const foundNovelRaw = remoteNovel || localNovel;
-      const foundNovel = foundNovelRaw;
-      
-      const sorted = [...(foundNovel?.chapters || [])].sort((a, b) => a.chapter_order - b.chapter_order);
+      const foundNovel = remoteNovel || localNovel;
+
+      const sorted = [...(foundNovel?.chapters || [])].sort((a, b) => Number(a.chapter_order || 0) - Number(b.chapter_order || 0));
       const current = sorted.find((item) => String(item.id) === String(chapterId));
 
       setNovel(foundNovel || null);
@@ -173,50 +226,35 @@ function Reader() {
       }
 
       setLoading(false);
-
-      // Posicionamiento de scroll inteligente basado en historial remoto
-      if (supabase.isConfigured && foundNovel && current) {
-        const { data: sessionData } = await supabase.auth.getSession();
-        if (sessionData.session?.user) {
-          const { data: historyData } = await supabase
-            .from('reading_history')
-            .select('*')
-            .eq('user_id', sessionData.session.user.id)
-            .eq('novel_id', foundNovel.id)
-            .maybeSingle();
-
-          if (historyData?.chapter_id === current.id && historyData.scroll_position > 0) {
-            setTimeout(() => window.scrollTo({ top: historyData.scroll_position, behavior: 'smooth' }), 400);
-          }
-        }
-      }
     }
 
     loadReader();
   }, [novelId, chapterId]);
 
-  // Manejo de scroll para actualización de barra de progreso reactiva
   useEffect(() => {
     function updateProgress() {
       const scrollTop = window.scrollY;
       const totalHeight = document.documentElement.scrollHeight - window.innerHeight;
+
       setProgress(totalHeight <= 0 ? 0 : Math.min(100, Math.max(0, Math.round((scrollTop / totalHeight) * 100))));
     }
 
     updateProgress();
     window.addEventListener('scroll', updateProgress, { passive: true });
     window.addEventListener('resize', updateProgress);
+
     return () => {
       window.removeEventListener('scroll', updateProgress);
       window.removeEventListener('resize', updateProgress);
     };
   }, []);
 
-  // Intervalo automático para almacenar progreso en la base de datos
   useEffect(() => {
     async function saveHistory() {
       if (!supabase.isConfigured || !novel || !chapter) return;
+
       const { data: sessionData } = await supabase.auth.getSession();
+
       if (!sessionData.session?.user) return;
 
       await supabase.from('reading_history').upsert({
@@ -229,13 +267,34 @@ function Reader() {
       });
     }
 
-    if (!novel || !chapter) return;
+    if (!novel || !chapter) return undefined;
+
     const interval = setInterval(saveHistory, 5000);
-    return () => { clearInterval(interval); saveHistory(); };
+
+    return () => {
+      clearInterval(interval);
+      saveHistory();
+    };
   }, [novel, chapter, progress]);
 
-  if (loading) return <div className="reader-page"><div className="reader-card">Cargando...</div></div>;
-  if (!novel || !chapter) return <div className="reader-page"><div className="reader-card"><h1>Capítulo no encontrado</h1><Link to="/" className="reader-button">Volver</Link></div></div>;
+  if (loading) {
+    return (
+      <div className="reader-page">
+        <div className="reader-card">Cargando...</div>
+      </div>
+    );
+  }
+
+  if (!novel || !chapter) {
+    return (
+      <div className="reader-page">
+        <div className="reader-card">
+          <h1>Capítulo no encontrado</h1>
+          <Link to={`/novel/${novelId}`} className="reader-button">Volver</Link>
+        </div>
+      </div>
+    );
+  }
 
   const index = chapters.findIndex((item) => String(item.id) === String(chapter.id));
   const previous = index > 0 ? chapters[index - 1] : null;
@@ -254,8 +313,14 @@ function Reader() {
       <SEO title={`${chapter.title} · ${novel.title}`} />
 
       <div className="reader-topbar">
-        <Link to={`/novel/${novel.id}`}><ArrowLeft size={17} /> Índice</Link>
-        <Link to="/"><Home size={17} /> Catálogo</Link>
+        <Link to={`/novel/${novel.id}`}>
+          <ArrowLeft size={17} /> Índice
+        </Link>
+
+        <Link to="/">
+          <Home size={17} /> Catálogo
+        </Link>
+
         <ReaderSettings settings={settings} update={update} />
       </div>
 
@@ -272,15 +337,28 @@ function Reader() {
         {chapter.file_type === 'pdf' && chapter.file_url ? (
           <iframe className="pdf-reader" src={chapter.file_url} title={chapter.title} />
         ) : (
-          <div className="reader-text" style={{ whitespace: 'pre-wrap' }}>{text}</div>
+          <div className="reader-text" style={{ whiteSpace: 'pre-wrap' }}>{text}</div>
         )}
       </article>
 
       <CommentsSection novelId={novelId} chapterId={chapterId} />
 
       <div className="reader-navigation">
-        <button type="button" disabled={!previous} onClick={() => navigate(`/novel/${novel.id}/chapter/${previous.id}`)}>Anterior</button>
-        <button type="button" disabled={!next} onClick={() => navigate(`/novel/${novel.id}/chapter/${next.id}`)}>Siguiente</button>
+        <button
+          type="button"
+          disabled={!previous}
+          onClick={() => navigate(`/novel/${novel.id}/chapter/${previous.id}`)}
+        >
+          Anterior
+        </button>
+
+        <button
+          type="button"
+          disabled={!next}
+          onClick={() => navigate(`/novel/${novel.id}/chapter/${next.id}`)}
+        >
+          Siguiente
+        </button>
       </div>
 
       <MobileNav />
@@ -296,6 +374,8 @@ export default function App() {
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/" element={<HomePage />} />
+          <Route path="/catalogo" element={<HomePage />} />
+          <Route path="/login" element={<Login />} />
           <Route path="/library" element={<Library />} />
           <Route path="/novel/:id" element={<NovelDetails />} />
           <Route path="/novel/:novelId/chapter/:chapterId" element={<Reader />} />

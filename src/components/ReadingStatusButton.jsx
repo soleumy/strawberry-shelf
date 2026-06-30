@@ -1,6 +1,8 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { BookMarked } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
+import { getLocalReadingStatus, setLocalReadingStatus } from '../lib/localInteractions';
 
 const OPTIONS = [
   { value: '', label: 'Añadir a biblioteca' },
@@ -11,62 +13,65 @@ const OPTIONS = [
 ];
 
 export function ReadingStatusButton({ novelId }) {
-  const [session, setSession] = useState(null);
+  const { user } = useAuth();
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(false);
 
   async function loadStatus() {
-    const { data: sessionData } = await supabase.auth.getSession();
-    const currentSession = sessionData.session || null;
+    setStatus(getLocalReadingStatus(user?.id, novelId));
 
-    setSession(currentSession);
+    if (supabase.isConfigured === false || !user) return;
 
-    if (!currentSession?.user) return;
-
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('reading_list')
       .select('status')
-      .eq('novel_id', novelId)
-      .eq('user_id', currentSession.user.id)
+      .eq('novel_id', String(novelId))
+      .eq('user_id', user.id)
       .maybeSingle();
 
-    setStatus(data?.status || '');
+    if (!error && data?.status) {
+      setStatus(data.status);
+      setLocalReadingStatus(user.id, novelId, data.status);
+    }
   }
 
   async function changeStatus(nextStatus) {
-    if (!session?.user) {
-      alert('Inicia sesión para guardar tu biblioteca.');
-      return;
-    }
-
     setLoading(true);
+    setStatus(nextStatus);
+    setLocalReadingStatus(user?.id, novelId, nextStatus);
 
-    if (!nextStatus) {
-      await supabase
-        .from('reading_list')
-        .delete()
-        .eq('novel_id', novelId)
-        .eq('user_id', session.user.id);
+    if (supabase.isConfigured !== false && user) {
+      if (!nextStatus) {
+        await supabase
+          .from('reading_list')
+          .delete()
+          .eq('novel_id', String(novelId))
+          .eq('user_id', user.id);
+      } else {
+        const payload = {
+          novel_id: String(novelId),
+          user_id: user.id,
+          status: nextStatus,
+          updated_at: new Date().toISOString(),
+        };
 
-      setStatus('');
-      setLoading(false);
-      return;
+        const { error } = await supabase
+          .from('reading_list')
+          .upsert(payload, { onConflict: 'user_id,novel_id' });
+
+        if (error) {
+          await supabase.from('reading_list').delete().eq('novel_id', String(novelId)).eq('user_id', user.id);
+          await supabase.from('reading_list').insert(payload);
+        }
+      }
     }
 
-    await supabase.from('reading_list').upsert({
-      novel_id: novelId,
-      user_id: session.user.id,
-      status: nextStatus,
-      updated_at: new Date().toISOString(),
-    });
-
-    setStatus(nextStatus);
     setLoading(false);
   }
 
   useEffect(() => {
     loadStatus();
-  }, [novelId]);
+  }, [novelId, user?.id]);
 
   return (
     <label className="library-select">

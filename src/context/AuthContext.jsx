@@ -3,80 +3,97 @@ import { supabase } from '../lib/supabase';
 
 const AuthContext = createContext({
   user: null,
+  session: null,
   profile: null,
   loading: true,
+  userId: null,
+  isAdmin: false,
+  refresh: async () => {},
   signOut: async () => {},
 });
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
+  const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // Si Supabase no está configurado, saltamos la carga remota
-    if (!supabase.isConfigured) {
+  async function loadProfile(userId) {
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle();
+
+    setProfile(data || null);
+    return data || null;
+  }
+
+  async function refresh() {
+    if (supabase.isConfigured === false) {
       setLoading(false);
       return;
     }
 
-    // 1. Obtener la sesión actual al cargar la app
-    async function getInitialSession() {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          setUser(session.user);
-          await fetchProfile(session.user.id);
-        }
-      } catch (err) {
-        console.error('Error obteniendo sesión inicial:', err);
-      } finally {
-        setLoading(false);
-      }
+    const { data } = await supabase.auth.getSession();
+    const currentSession = data.session || null;
+
+    setSession(currentSession);
+    setUser(currentSession?.user || null);
+
+    if (currentSession?.user) {
+      await loadProfile(currentSession.user.id);
+    } else {
+      setProfile(null);
     }
 
-    // 2. Obtener el perfil extendido (rol de admin, avatar, etc.)
-    async function fetchProfile(userId) {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle();
+    setLoading(false);
+  }
 
-      if (!error && data) {
-        setProfile(data);
-      }
-    }
+  useEffect(() => {
+    refresh();
 
-    getInitialSession();
+    if (supabase.isConfigured === false) return undefined;
 
-    // 3. Escuchar cambios de estado en tiempo real (Login, Logout, Registro)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        setUser(session.user);
-        await fetchProfile(session.user.id);
+    const { data } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
+      setSession(currentSession || null);
+      setUser(currentSession?.user || null);
+
+      if (currentSession?.user) {
+        await loadProfile(currentSession.user.id);
       } else {
-        setUser(null);
         setProfile(null);
       }
+
       setLoading(false);
     });
 
-    return () => {
-      subscription?.unsubscribe();
-    };
+    return () => data.subscription.unsubscribe();
   }, []);
 
-  const signOut = async () => {
-    if (supabase.isConfigured) {
+  async function signOut() {
+    if (supabase.isConfigured !== false) {
       await supabase.auth.signOut();
     }
+
+    setSession(null);
     setUser(null);
     setProfile(null);
-  };
+  }
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signOut }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        session,
+        profile,
+        loading,
+        userId: user?.id || null,
+        isAdmin: profile?.role === 'admin' || !!profile?.is_admin,
+        refresh,
+        signOut,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

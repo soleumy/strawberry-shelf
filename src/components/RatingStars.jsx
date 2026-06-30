@@ -1,56 +1,87 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { Star } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import { getLocalRatings, setLocalRating } from '../lib/localInteractions';
 
 export function RatingStars({ novelId, readonly = false, size = 18 }) {
-  const { session } = useAuth();
+  const { user } = useAuth();
   const [userScore, setUserScore] = useState(0);
   const [avgScore, setAvgScore] = useState(0);
   const [count, setCount] = useState(0);
   const [hover, setHover] = useState(0);
 
-  async function loadRatings() {
-    const { data: ratings } = await supabase
-      .from('ratings')
-      .select('score, user_id')
-      .eq('novel_id', novelId);
-
-    const scores = ratings || [];
+  function applyScores(rows) {
+    const scores = rows || [];
     setCount(scores.length);
 
     if (scores.length > 0) {
-      const avg = scores.reduce((sum, r) => sum + r.score, 0) / scores.length;
+      const avg = scores.reduce((sum, row) => sum + Number(row.score || 0), 0) / scores.length;
       setAvgScore(Math.round(avg * 10) / 10);
     } else {
       setAvgScore(0);
     }
 
-    if (session?.user) {
-      const mine = scores.find((r) => r.user_id === session.user.id);
-      setUserScore(mine?.score || 0);
+    const mine = scores.find((row) => row.user_id === (user?.id || 'local-reader'));
+    setUserScore(mine?.score || 0);
+  }
+
+  async function loadRatings() {
+    applyScores(getLocalRatings(novelId));
+
+    if (supabase.isConfigured === false) return;
+
+    const { data, error } = await supabase
+      .from('ratings')
+      .select('score, user_id')
+      .eq('novel_id', String(novelId));
+
+    if (!error && data) {
+      data.forEach((row) => {
+        if (row.user_id === user?.id) setLocalRating(user.id, novelId, row.score);
+      });
+      applyScores([...data, ...getLocalRatings(novelId)]);
     }
   }
 
   useEffect(() => {
     loadRatings();
-  }, [novelId, session]);
+  }, [novelId, user?.id]);
 
   async function rate(score) {
-    if (readonly || !session?.user) {
-      if (!session?.user) alert('Inicia sesión para valorar.');
-      return;
-    }
-
-    await supabase.from('ratings').upsert({
-      user_id: session.user.id,
-      novel_id: novelId,
-      score,
-      updated_at: new Date().toISOString(),
-    });
+    if (readonly) return;
 
     setUserScore(score);
-    loadRatings();
+    setLocalRating(user?.id, novelId, score);
+    applyScores(getLocalRatings(novelId));
+
+    if (supabase.isConfigured !== false && user) {
+      const payload = {
+        user_id: user.id,
+        novel_id: String(novelId),
+        score,
+        updated_at: new Date().toISOString(),
+      };
+
+      const { error } = await supabase.from('ratings').upsert(payload, { onConflict: 'user_id,novel_id' });
+
+      if (error) {
+        const { data: existing } = await supabase
+          .from('ratings')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('novel_id', String(novelId))
+          .maybeSingle();
+
+        if (existing?.id) {
+          await supabase.from('ratings').update({ score }).eq('id', existing.id);
+        } else {
+          await supabase.from('ratings').insert({ user_id: user.id, novel_id: String(novelId), score });
+        }
+      }
+
+      loadRatings();
+    }
   }
 
   const display = hover || userScore || Math.round(avgScore);
@@ -74,11 +105,9 @@ export function RatingStars({ novelId, readonly = false, size = 18 }) {
         ))}
       </div>
 
-      {avgScore > 0 && (
-        <span className="rating-avg">
-          {avgScore} ({count})
-        </span>
-      )}
+      <span className="rating-avg">
+        {avgScore > 0 ? `${avgScore} (${count})` : 'Sin calificaciones'}
+      </span>
     </div>
   );
 }

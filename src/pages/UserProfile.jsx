@@ -1,102 +1,119 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { BookOpen, Calendar, Heart, Users } from 'lucide-react';
+import { ArrowLeft, BookOpen, Calendar, Edit3, Heart, UserRound } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { FollowButton } from '../components/FollowButton';
 import { SiteLayout } from '../components/SiteLayout';
 import { SEO } from '../components/SEO';
 import { useAuth } from '../context/AuthContext';
 
+function getDisplayName(profile) {
+  return profile?.display_name || profile?.full_name || profile?.username || 'Usuario';
+}
+
+function getAuthorName(novel, profile) {
+  return novel?.author || getDisplayName(profile) || 'Comunidad';
+}
+
 export function UserProfile() {
   const { id } = useParams();
-  const { userId: currentUserId } = useAuth();
+  const { userId } = useAuth();
+
   const [profile, setProfile] = useState(null);
-  const [stats, setStats] = useState({});
   const [novels, setNovels] = useState([]);
-  const [collections, setCollections] = useState([]);
-  const [activity, setActivity] = useState([]);
+  const [stats, setStats] = useState({ novels: 0, chapters: 0 });
+  const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState('');
 
-  const loadProfileData = useCallback(async () => {
-    const { data } = await supabase.from('profiles').select('*').eq('id', id).maybeSingle();
-    setProfile(data);
+  async function loadProfile() {
+    setLoading(true);
+    setMessage('');
 
-    if (!data) return;
+    const { data: profileData, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
 
-    const [
-      { count: novelCount },
-      { count: followerCount },
-      { count: followingCount },
-      { data: userNovels },
-      { data: userCollections },
-      { data: userActivity },
-    ] = await Promise.all([
-      supabase.from('novels').select('*', { count: 'exact', head: true }).eq('created_by', id).eq('status', 'approved'),
-      supabase.from('followers').select('*', { count: 'exact', head: true }).eq('following_id', id),
-      supabase.from('followers').select('*', { count: 'exact', head: true }).eq('follower_id', id),
-      supabase.from('novels').select('*').eq('created_by', id).eq('status', 'approved').order('created_at', { ascending: false }).limit(12),
-      supabase.from('collections').select('*').eq('owner_id', id).eq('is_public', true).limit(6),
-      supabase.from('activity').select('*').eq('user_id', id).order('created_at', { ascending: false }).limit(10),
-    ]);
+    if (profileError) {
+      setMessage(profileError.message);
+      setLoading(false);
+      return;
+    }
+
+    setProfile(profileData || null);
+
+    const { data: novelsData, error: novelsError } = await supabase
+      .from('novels')
+      .select('id, title, author, synopsis, cover_url, status, created_at')
+      .eq('author_id', id)
+      .order('created_at', { ascending: false });
+
+    if (novelsError) {
+      setMessage(novelsError.message);
+      setNovels([]);
+      setLoading(false);
+      return;
+    }
+
+    const userNovels = novelsData || [];
+    setNovels(userNovels);
 
     let chapterCount = 0;
-    let favoriteCount = 0;
 
-    if (userNovels?.length) {
-      const novelIds = userNovels.map((n) => n.id);
-      const [{ count: chapters }, { count: favs }] = await Promise.all([
-        supabase.from('chapters').select('*', { count: 'exact', head: true }).in('novel_id', novelIds),
-        supabase.from('favorites').select('*', { count: 'exact', head: true }).in('novel_id', novelIds),
-      ]);
-      chapterCount = chapters || 0;
-      favoriteCount = favs || 0;
+    if (userNovels.length > 0) {
+      const novelIds = userNovels.map((novel) => novel.id);
+
+      const { count } = await supabase
+        .from('chapters')
+        .select('*', { count: 'exact', head: true })
+        .in('novel_id', novelIds);
+
+      chapterCount = count || 0;
     }
 
     setStats({
-      novels: novelCount || 0,
+      novels: userNovels.length,
       chapters: chapterCount,
-      followers: followerCount || 0,
-      following: followingCount || 0,
-      favorites: favoriteCount,
     });
 
-    setNovels(userNovels || []);
-    setCollections(userCollections || []);
-    setActivity(userActivity || []);
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    loadProfile();
   }, [id]);
 
-  useEffect(() => {
-    loadProfileData();
-  }, [id, loadProfileData]);
-
-  useEffect(() => {
-    function onFollowChanged(e) {
-      try {
-        const { targetId } = e.detail || {};
-        if (targetId === id) {
-          loadProfileData();
-        }
-      } catch (err) {
-        // ignore
-      }
-    }
-
-    window.addEventListener('follow-changed', onFollowChanged);
-    return () => window.removeEventListener('follow-changed', onFollowChanged);
-  }, [id, loadProfileData]);
+  if (loading) {
+    return (
+      <SiteLayout>
+        <main className="detail-page">
+          <section className="reader-card">Cargando perfil...</section>
+        </main>
+      </SiteLayout>
+    );
+  }
 
   if (!profile) {
     return (
       <SiteLayout>
-        <main className="detail-page"><section className="reader-card">Perfil no encontrado.</section></main>
+        <main className="detail-page">
+          <section className="reader-card">
+            <h1>Perfil no encontrado</h1>
+            <Link to="/" className="secondary-action">
+              <ArrowLeft size={16} /> Volver al catálogo
+            </Link>
+          </section>
+        </main>
       </SiteLayout>
     );
   }
 
   const social = profile.social_links || {};
+  const isOwnProfile = userId === id;
 
   return (
     <SiteLayout>
-      <SEO title={profile.display_name} description={profile.bio} image={profile.avatar_url} />
+      <SEO title={getDisplayName(profile)} description={profile.bio} image={profile.avatar_url} />
 
       <main className="detail-page">
         <section className="profile-page">
@@ -108,16 +125,19 @@ export function UserProfile() {
           <div className="profile-header">
             <div className="profile-avatar-large">
               {profile.avatar_url ? (
-                <img src={profile.avatar_url} alt={profile.display_name} />
+                <img src={profile.avatar_url} alt={getDisplayName(profile)} />
               ) : (
-                <span>{(profile.display_name || '?')[0]}</span>
+                <UserRound size={52} />
               )}
             </div>
 
             <div className="profile-header-info">
               <span className="detail-pill">@{profile.username || 'usuario'}</span>
-              <h1>{profile.display_name || 'Usuario'}</h1>
-              <p className="detail-meta">{profile.country || 'Sin país'}</p>
+              <h1>{getDisplayName(profile)}</h1>
+
+              <p className="detail-meta">
+                {profile.country || 'Sin país'}
+              </p>
 
               {profile.created_at && (
                 <p className="profile-joined">
@@ -126,17 +146,26 @@ export function UserProfile() {
               )}
 
               <div className="profile-actions">
-                <FollowButton userId={id} />
-                {currentUserId === id && (
-                  <Link to="/profile/edit" className="secondary-action">Editar perfil</Link>
+                {isOwnProfile && (
+                  <Link to="/profile/edit" className="primary-action">
+                    <Edit3 size={16} /> Editar perfil
+                  </Link>
                 )}
+
+                <Link to="/library" className="secondary-action">
+                  <Heart size={16} /> Biblioteca
+                </Link>
               </div>
             </div>
           </div>
 
-          <p className="detail-synopsis">{profile.bio || 'Este usuario todavía no tiene biografía.'}</p>
+          {message && <p className="form-message">{message}</p>}
 
-          {(social.instagram || social.twitter || social.tiktok || social.website) && (
+          <p className="detail-synopsis">
+            {profile.bio || 'Este usuario todavía no tiene biografía.'}
+          </p>
+
+          {(social.website || social.instagram || social.twitter || social.tiktok) && (
             <div className="profile-social-links">
               {social.website && <a href={social.website} target="_blank" rel="noreferrer">Web</a>}
               {social.instagram && <a href={social.instagram} target="_blank" rel="noreferrer">Instagram</a>}
@@ -146,61 +175,51 @@ export function UserProfile() {
           )}
 
           <div className="profile-stats">
-            <div><strong>{stats.novels}</strong><span>Novelas</span></div>
-            <div><strong>{stats.chapters}</strong><span>Capítulos</span></div>
-            <div><strong>{stats.followers}</strong><span>Seguidores</span></div>
-            <div><strong>{stats.following}</strong><span>Siguiendo</span></div>
-            <div><strong>{stats.favorites}</strong><span>Favoritos recibidos</span></div>
+            <div>
+              <strong>{stats.novels}</strong>
+              <span>Novelas</span>
+            </div>
+
+            <div>
+              <strong>{stats.chapters}</strong>
+              <span>Capítulos</span>
+            </div>
           </div>
 
-          {novels.length > 0 && (
-            <section className="profile-section">
-              <h2><BookOpen size={20} /> Novelas</h2>
-              <div className="novel-grid">
+          <section className="profile-section">
+            <h2><BookOpen size={20} /> Novelas creadas</h2>
+
+            {novels.length === 0 ? (
+              <div className="empty-state">Este perfil todavía no tiene novelas publicadas.</div>
+            ) : (
+              <div className="kawaii-grid">
                 {novels.map((novel) => (
-                  <Link key={novel.id} to={`/novel/${novel.id}`} className="novel-card">
-                    <div className="cover-frame">
-                      <img src={novel.cover_url || '/placeholder-cover.png'} alt={novel.title} loading="lazy" />
+                  <Link key={novel.id} to={`/novel/${novel.id}`} className="kawaii-novel-card">
+                    <div className="kawaii-cover">
+                      <img
+                        src={novel.cover_url || '/placeholder-cover.png'}
+                        alt={novel.title}
+                        loading="lazy"
+                        onError={(event) => {
+                          event.currentTarget.src = '/placeholder-cover.png';
+                        }}
+                      />
+                      <span>{novel.status === 'approved' ? 'Publicada' : 'Pendiente'}</span>
                     </div>
-                    <div className="novel-body">
+
+                    <div>
                       <h3>{novel.title}</h3>
-                      <p>{novel.author || 'Sin autor'}</p>
+                      <p>{getAuthorName(novel, profile)}</p>
                     </div>
                   </Link>
                 ))}
               </div>
-            </section>
-          )}
-
-          {collections.length > 0 && (
-            <section className="profile-section">
-              <h2><Heart size={20} /> Colecciones públicas</h2>
-              <div className="collections-grid">
-                {collections.map((col) => (
-                  <article key={col.id} className="collection-card">
-                    <h3>{col.name}</h3>
-                    <p>{col.description}</p>
-                  </article>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {activity.length > 0 && (
-            <section className="profile-section">
-              <h2><Users size={20} /> Actividad reciente</h2>
-              <div className="activity-list">
-                {activity.map((item) => (
-                  <article key={item.id} className="activity-item">
-                    <span className="detail-pill">{item.type}</span>
-                    <time>{new Date(item.created_at).toLocaleDateString('es')}</time>
-                  </article>
-                ))}
-              </div>
-            </section>
-          )}
+            )}
+          </section>
         </section>
       </main>
     </SiteLayout>
   );
 }
+
+export default UserProfile;

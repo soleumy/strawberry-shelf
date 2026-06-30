@@ -2,11 +2,11 @@ import React, { useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { Heart, Sun, Moon, LogIn, LayoutDashboard } from 'lucide-react';
 import { AppContext } from '../context/AppContext';
-import { useAuth } from '../context/AuthContext'; // Asegúrate de tener este hook
+import { useAuth } from '../context/AuthContext'; // Asegúrate de que esta ruta sea correcta
 
 export const Navbar = () => {
   const { darkMode, setDarkMode, favorites, heartsEnabled, setHeartsEnabled } = useContext(AppContext);
-  const { user } = useAuth(); // Obtenemos el estado de usuario
+  const { user } = useAuth(); 
 
   return (
     <nav className="sticky top-0 bg-white/80 dark:bg-darkKawaii-secundario/90 backdrop-blur-md border-b-4 border-kawaii-secundario dark:border-darkKawaii-secundario z-40 px-6 py-3 flex justify-between items-center transition-colors">
@@ -20,13 +20,19 @@ export const Navbar = () => {
       {/* Acciones derecha */}
       <div className="flex items-center gap-3">
         
-        {/* Botón de Autenticación / Dashboard */}
+        {/* Renderizado condicional del botón de Auth */}
         {user ? (
-          <Link to="/dashboard" className="flex items-center gap-2 bg-pink-100 text-pink-600 px-4 py-2 rounded-full text-xs font-bold hover:bg-pink-200 transition-all border border-pink-200">
+          <Link 
+            to="/dashboard" 
+            className="flex items-center gap-2 bg-pink-100 text-pink-600 px-4 py-2 rounded-full text-xs font-bold hover:bg-pink-200 transition-all border border-pink-200"
+          >
             <LayoutDashboard size={16} /> Dashboard
           </Link>
         ) : (
-          <Link to="/login" className="flex items-center gap-2 bg-kawaii-rosa text-white px-4 py-2 rounded-full text-xs font-bold hover:opacity-90 transition-all shadow-sm">
+          <Link 
+            to="/login" 
+            className="flex items-center gap-2 bg-kawaii-rosa text-white px-4 py-2 rounded-full text-xs font-bold hover:opacity-90 transition-all shadow-sm"
+          >
             <LogIn size={16} /> Iniciar Sesión
           </Link>
         )}
