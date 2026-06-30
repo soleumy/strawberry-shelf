@@ -1,12 +1,33 @@
 import React, { useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
-import { ArrowLeft, LogIn, Mail } from 'lucide-react';
+import { ArrowLeft, LogIn, Mail, UserPlus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 
+function getErrorMessage(error) {
+  const message = error?.message || '';
+
+  if (message.includes('Invalid login credentials')) {
+    return 'Correo o contraseña incorrectos.';
+  }
+
+  if (message.includes('User already registered')) {
+    return 'Ese correo ya está registrado. Inicia sesión.';
+  }
+
+  if (message.includes('Password should be at least')) {
+    return 'La contraseña debe tener al menos 6 caracteres.';
+  }
+
+  return message || 'Ocurrió un error.';
+}
+
 export function Login() {
-  const { user } = useAuth();
+  const { user, refresh } = useAuth();
+  const [mode, setMode] = useState('login');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
 
@@ -14,32 +35,93 @@ export function Login() {
     return <Navigate to="/dashboard" replace />;
   }
 
-  async function handleSubmit(event) {
+  async function ensureProfile(currentUser) {
+    if (!currentUser?.id) return;
+
+    const usernameBase =
+      currentUser.email?.split('@')[0]?.toLowerCase().replace(/[^a-z0-9_]/g, '') ||
+      `user_${currentUser.id.slice(0, 8)}`;
+
+    const { data: existingProfile } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', currentUser.id)
+      .maybeSingle();
+
+    if (existingProfile) return;
+
+    await supabase.from('profiles').insert({
+      id: currentUser.id,
+      username: `${usernameBase}_${currentUser.id.slice(0, 8)}`,
+      display_name: displayName || usernameBase,
+    });
+  }
+
+  async function handleLogin(event) {
     event.preventDefault();
     setMessage('');
 
-    if (!email.trim()) {
-      setMessage('Escribe tu email.');
+    if (!email.trim() || !password.trim()) {
+      setMessage('Escribe tu correo y contraseña.');
       return;
     }
 
     setSending(true);
 
     try {
-      const redirectTo = `${window.location.origin}${window.location.pathname}#/dashboard`;
-
-      const { error } = await supabase.auth.signInWithOtp({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
+        password,
+      });
+
+      if (error) throw error;
+
+      await ensureProfile(data.user);
+      await refresh?.();
+    } catch (error) {
+      setMessage(getErrorMessage(error));
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function handleRegister(event) {
+    event.preventDefault();
+    setMessage('');
+
+    if (!email.trim() || !password.trim()) {
+      setMessage('Escribe tu correo y contraseña.');
+      return;
+    }
+
+    if (password.length < 6) {
+      setMessage('La contraseña debe tener al menos 6 caracteres.');
+      return;
+    }
+
+    setSending(true);
+
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
         options: {
-          emailRedirectTo: redirectTo,
+          data: {
+            display_name: displayName,
+          },
         },
       });
 
       if (error) throw error;
 
-      setMessage('Te envié un enlace para iniciar sesión. Revisa tu correo.');
+      if (data.user) {
+        await ensureProfile(data.user);
+      }
+
+      await refresh?.();
+      setMessage('Cuenta creada. Ya puedes entrar.');
     } catch (error) {
-      setMessage(error.message);
+      setMessage(getErrorMessage(error));
     } finally {
       setSending(false);
     }
@@ -53,9 +135,44 @@ export function Login() {
 
       <section className="reader-card">
         <p className="reader-novel">Cuenta</p>
-        <h1>Iniciar sesión</h1>
+        <h1>{mode === 'login' ? 'Iniciar sesión' : 'Crear cuenta'}</h1>
 
-        <form className="profile-form" onSubmit={handleSubmit}>
+        <div className="library-tabs">
+          <button
+            type="button"
+            className={mode === 'login' ? 'active' : ''}
+            onClick={() => {
+              setMode('login');
+              setMessage('');
+            }}
+          >
+            <LogIn size={16} /> Entrar
+          </button>
+
+          <button
+            type="button"
+            className={mode === 'register' ? 'active' : ''}
+            onClick={() => {
+              setMode('register');
+              setMessage('');
+            }}
+          >
+            <UserPlus size={16} /> Registrarme
+          </button>
+        </div>
+
+        <form className="profile-form" onSubmit={mode === 'login' ? handleLogin : handleRegister}>
+          {mode === 'register' && (
+            <label>
+              Nombre público
+              <input
+                value={displayName}
+                onChange={(event) => setDisplayName(event.target.value)}
+                placeholder="Tu nombre"
+              />
+            </label>
+          )}
+
           <label>
             Email
             <div className="catalog-search">
@@ -70,8 +187,24 @@ export function Login() {
             </div>
           </label>
 
+          <label>
+            Contraseña
+            <input
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="Mínimo 6 caracteres"
+              required
+            />
+          </label>
+
           <button type="submit" className="primary-action" disabled={sending}>
-            {sending ? 'Enviando...' : 'Enviar enlace'} <LogIn size={18} />
+            {sending
+              ? 'Procesando...'
+              : mode === 'login'
+                ? 'Iniciar sesión'
+                : 'Crear cuenta'}{' '}
+            {mode === 'login' ? <LogIn size={18} /> : <UserPlus size={18} />}
           </button>
 
           {message && <p className="form-message">{message}</p>}

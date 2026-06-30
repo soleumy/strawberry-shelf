@@ -209,7 +209,7 @@ export function HomePage() {
             <h1>strawberry shelf</h1>
 
             <p>
-              Traducciones y recopilaciones kawaii para historias que merecen brillar.
+              Traducciones y recopilaciones para historias que merecen brillar.
             </p>
 
             <div className="hero-actions">
